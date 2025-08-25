@@ -15,32 +15,39 @@ import posixpath
 from pathlib import Path
 from datetime import timedelta
 
+from environs import Env
+
+env = Env()
+env.read_env()
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '21c27df7-4d88-443d-993a-a450e793d72c'
+SECRET_KEY = env.str("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool("DEBUG")
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
-ALLOWED_HOSTS=(list, ["*"]),
-CORS_ALLOWED_ORIGIN=(list, []),
-CSRF_TRUSTED_ORIGIN=(list, []),
-DB_NAME=(str, "invoicetracker"),
-DB_USER=(str, "root"),
-DB_PASSWORD=(str, ""),
-DB_HOST=(str, "127.0.0.1"),
-DB_PORT=(str, "3306"),
-REDIS_URL=(str, "redis://127.0.0.1:6379/0"),
-EMAIL_HOST=(str, "localhost"),
-EMAIL_PORT=(int, 25),
-EMAIL_HOST_USER=(str, ""),
-EMAIL_HOST_PASSWORD=(str, ""),
-EMAIL_USE_TLS=(bool, False),
-# Application references
+# Database
+DB_NAME = env.str("DB_NAME")
+DB_USER = env.str("DB_USER")
+DB_PASSWORD = env.str("DB_PASSWORD")
+DB_HOST = env.str("DB_HOST")
+DB_PORT = env.str("DB_PORT")
+
+# Redis
+REDIS_URL = env.str("REDIS_URL")
+
+# Email
+EMAIL_HOST = env.str("EMAIL_HOST")
+EMAIL_PORT = env.int("EMAIL_PORT")
+EMAIL_HOST_USER = env.str("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
 # https://docs.djangoproject.com/en/2.1/ref/settings/#std:setting-INSTALLED_APPS
 INSTALLED_APPS = [
     'app',
@@ -77,12 +84,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'auditlog.middleware.AuditLogMiddleware',
+    # 'auditlog.middleware.AuditLogMiddleware',
 
 ]
 
 ROOT_URLCONF = 'Invoice_tracking_Bakend.urls'
-
 # Template configuration
 # https://docs.djangoproject.com/en/2.1/topics/templates/
 TEMPLATES = [
@@ -141,7 +147,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 AUTH_USER_MODEL = "users.User"
-
+# APPEND_SLASH = False
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
 LANGUAGE_CODE = 'en-us'
@@ -186,12 +192,13 @@ SIMPLE_JWT = {
 }
 
 # CORS / CSRF
-CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGIN
-CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGIN
+TIME_ZONE = env.str("TIME_ZONE")
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = True
 # In development, allow any origin (use configured origins in production)
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+# if DEBUG:
+    # CORS_ALLOW_ALL_ORIGINS = True
 
 # Channels
 CHANNEL_LAYERS = {
@@ -214,7 +221,7 @@ EMAIL_PORT = EMAIL_PORT
 EMAIL_HOST_USER = EMAIL_HOST_USER
 EMAIL_HOST_PASSWORD = EMAIL_HOST_PASSWORD
 EMAIL_USE_TLS = EMAIL_USE_TLS
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or "no-reply@invoicetracker.local"
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # or "no-reply@invoicetracker.local"
 
 # API Docs
 SPECTACULAR_SETTINGS = {
