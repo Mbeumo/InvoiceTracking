@@ -2,4 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles can be added here */
+/* Reset default styles and ensure full-screen display */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Ensure forms and inputs are responsive */
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+/* Custom responsive utilities */
+@layer utilities {
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+  }
+  
+  .h-screen {
+    height: 100vh;
+    height: 100dvh;
+  }
+}

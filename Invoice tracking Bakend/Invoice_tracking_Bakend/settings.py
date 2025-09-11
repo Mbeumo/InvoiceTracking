@@ -51,6 +51,7 @@ DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
 # https://docs.djangoproject.com/en/2.1/ref/settings/#std:setting-INSTALLED_APPS
 INSTALLED_APPS = [
     'app',
+    'rest_framework_simplejwt.token_blacklist',
     # Add your apps here to enable them
     'django.contrib.admin',
     'django.contrib.auth',
@@ -58,6 +59,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'auditlog',
     # Third-party
     'rest_framework',
     'rest_framework.authtoken',
@@ -67,16 +69,18 @@ INSTALLED_APPS = [
     'channels',
     # Local apps
     'users',
+    'invoice'
     # 'invoices',
     # 'notifications',
     # 'analytics',
     # 'integrations',
-    # 'auditlog',
+    
 ]
 
 # Middleware framework
 # https://docs.djangoproject.com/en/2.1/topics/http/middleware/
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # ADD THIS LINE
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -94,7 +98,7 @@ ROOT_URLCONF = 'Invoice_tracking_Bakend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': os.path.join(BASE_DIR, 'templates'),
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

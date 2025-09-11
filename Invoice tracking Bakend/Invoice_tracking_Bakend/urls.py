@@ -41,8 +41,11 @@ urlpatterns = [
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/auth/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     # Apps
-    path("api/users/", include("users.urls")),
-    # path("api/invoices/", include("invoices.urls")),
+    path("api/", include("users.urls")),
+
+    path('ws/', include("invoice.urls")),
+
+    path("api/invoices/", include("invoice.urls")),
     # path("api/notifications/", include("notifications.urls")),
     # path("api/analytics/", include("analytics.urls")),
     # path("api/integrations/", include("integrations.urls")),

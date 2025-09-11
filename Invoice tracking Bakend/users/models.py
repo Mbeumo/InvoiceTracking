@@ -1,8 +1,33 @@
+﻿from sys import audit
 import uuid
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager,Permission
+from auditlog.registry import auditlog
+"""class Permission(models.Model):
+    id = models.AutoField(primary_key=True)
+    code = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
 
+    class Meta:
+        db_table = 'permissions'
+
+    def __str__(self):
+        return self.code
+class UserPermission(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    permission = models.ForeignKey('Permission', on_delete=models.CASCADE)
+    granted_at = models.DateTimeField(auto_now_add=True)
+    granted_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, related_name='granted_permissions')
+
+    class Meta:
+        db_table = 'user_permissions'
+        unique_together = ('user', 'permission')
+
+    def __str__(self):
+        return f"{self.user.email} → {self.permission.code} (by {self.granted_by.email if self.granted_by else 'unknown'})"
+Django provide built in implimentation of this 
+"""
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -33,10 +58,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('manager', 'Manager'),
         ('employee', 'Employee'),
         ('viewer', 'Viewer'),
-        ('approver', 'Approver'),
-        ('finance', 'Finance'),
+        # ('approver', 'Approver'),
+        # ('finance', 'Finance'),
+        # ('supplier','Vendor')
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    user_permissions = models.ManyToManyField(
+        Permission,
+        verbose_name='user permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        related_name='user_set',
+        related_query_name='user',
+    )
 
     manager_id = models.CharField(max_length=36, null=True, blank=True)
     location = models.CharField(max_length=255, null=True, blank=True)
@@ -59,6 +93,27 @@ class User(AbstractBaseUser, PermissionsMixin):
     updated_by = models.CharField(max_length=36, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     # date_joined = models.DateTimeField(default=timezone.now)
+    """permissions = models.ManyToManyField(
+        'Permission',
+        related_name='users',
+        db_table='user_permissions',
+        blank=True
+    ) this is for automatic weak relationship generation"""
+    # permissions = models.ManyToManyField(
+    #     'Permission',
+    #     through='UserPermission',
+    #     through_fields=('user', 'permission'),
+    #     related_name='users',
+    #     blank=True
+    # )
+    # permissions = models.ManyToManyField(
+    #     'Permission',
+    #     through='UserPermission',
+    #     through_fields=('user', 'permission'),
+    #     related_name='users',
+    #     blank=True
+    # )
+
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name', 'role', 'service_id']
@@ -70,3 +125,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'users'
+
+auditlog.register(User);
+#auditlog.register(UserManager);

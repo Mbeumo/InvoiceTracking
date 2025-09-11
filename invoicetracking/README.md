@@ -1,21 +1,25 @@
-# FactureFlow - Authentication Module
+# FactureFlow - Invoice Tracking (Frontend)
 
-A modern React-based authentication system for invoice tracking applications, designed with future MySQL and Python backend integration in mind.
+A modern React-based invoice tracking frontend designed to work with a Django REST Framework backend (with SimpleJWT and optional Channels for realtime).
 
 ## 🚀 Current Status
 
-**Frontend Authentication Module** - ✅ **COMPLETE**
-- User login/registration forms
-- Role-based access control (RBAC)
-- Mock authentication system
-- Responsive UI with Tailwind CSS
-- TypeScript support
+### Frontend
+- ✅ Auth wired to Django endpoints (SimpleJWT): login, refresh, me, logout, register
+- ✅ Axios client with JWT interceptors and automatic refresh
+- ✅ Vite dev proxy `/api` → Django (`http://localhost:8000` by default)
+- ✅ i18n (English/French) with JSON translation files
+- ✅ Dark/Light theme with persistence (Tailwind `dark` mode)
+- ✅ Settings panel (language + theme)
+- ✅ Dashboard with permission-aware cards
+- ✅ Realtime socket client scaffold (WebSocket) for invoice/notification events
+- ✅ OCR upload UI + ingest status checks
+- ✅ Notifications panel (list + mark-as-read)
 
-**Backend Integration** - 🚧 **PLANNED**
-- MySQL database integration
-- Python backend API (FastAPI/Flask)
-- JWT token authentication
-- Real user management
+### Backend (expected, integrate your Django project)
+- 🚧 Django REST Framework + SimpleJWT
+- 🚧 CORS configured for Vite origin
+- 🚧 Endpoints listed below (the frontend already calls these)
 
 ## 🛠️ Tech Stack
 
@@ -26,13 +30,14 @@ A modern React-based authentication system for invoice tracking applications, de
 - **Lucide React** - Beautiful icons
 - **Vite** - Fast build tool and dev server
 
-### Future Backend (Planned)
-- **Python 3.11+** - Backend runtime
-- **FastAPI/Flask** - Web framework
-- **MySQL 8.0+** - Database
-- **SQLAlchemy** - ORM
-- **JWT** - Authentication tokens
-- **bcrypt** - Password hashing
+### Backend (Recommended)
+- **Python 3.11+**
+- **Django + DRF**
+- **MySQL/PostgreSQL**
+- **djangorestframework-simplejwt**
+- **django-channels** (for realtime)
+- **Celery + Redis** (OCR/ML tasks)
+- **django-cors-headers**
 
 ## 📦 Installation
 
@@ -53,13 +58,8 @@ npm install
 npm run dev
 ```
 
-### Dependencies Installation
-The project will automatically install:
-- React and React DOM
-- TypeScript types
-- Tailwind CSS
-- Lucide React icons
-- Development tools (ESLint, Vite)
+### Notes
+- React, Tailwind, and tooling are installed via `npm install`.
 
 ## 🎯 Features
 
@@ -85,40 +85,65 @@ The project will automatically install:
   - Different permission levels
   - Easy testing and demonstration
 
-### Planned Features
-- 🔄 **Backend Integration**
-  - MySQL database storage
-  - Python API endpoints
-  - JWT token authentication
-  - Real user validation
+### In Progress / Next
+- Backend integration of OCR pipeline and ML scoring
+- Realtime invoice updates via Channels
+- Export (PDF/XLSX) endpoints and UI
+- Backups, audit log viewer, reports & analytics
 
-- 🔄 **Security Enhancements**
-  - Password hashing (bcrypt)
-  - Account lockout protection
-  - Two-factor authentication
-  - Session management
+## 🔗 API endpoints expected by the frontend
 
-- 🔄 **Advanced Features**
-  - Password reset functionality
-  - Email verification
-  - User activity logging
-  - Bulk user operations
+Auth and Users
+- POST `/api/auth/jwt/create/` (login)
+- POST `/api/auth/jwt/refresh/`
+- GET `/api/auth/me/`
+- POST `/api/auth/register/`
+- POST `/api/auth/logout/`
 
-## 🏗️ Project Structure
+Invoices
+- GET `/api/invoices/` (supports filters & pagination)
+- GET `/api/invoices/:id/`
+- POST `/api/invoices/`
+- PATCH `/api/invoices/:id/`
+- POST `/api/invoices/:id/approve/` | `/reject/`
+- GET `/api/invoices/:id/history/`
+- GET `/api/invoices/:id/attachments/` | POST `/attachments/`
+
+Notifications
+- GET `/api/notifications/`
+- PATCH `/api/notifications/:id/` (read/archive)
+
+OCR / Ingest
+- POST `/api/ingest/upload/` (multipart)
+- GET `/api/ingest/:jobId/` (status)
+
+Realtime
+- WebSocket `ws://localhost:8000/ws/invoices/` (or `VITE_WS_BASE_URL`) with `?token=JWT` (Channels group events)
+
+## 🏗️ Project Structure (key parts)
 
 ```
 src/
-├── components/          # React components
-│   ├── LoginForm.tsx   # Login form component
-│   └── RegisterForm.tsx # Registration form component
-├── controllers/         # Business logic hooks
-│   └── useAuth.ts      # Authentication controller
-├── data/               # Mock data (temporary)
-│   └── users.ts        # User data and permissions
-├── types/              # TypeScript type definitions
-│   └── Auth.ts         # Authentication types
-├── App.jsx             # Main application component
-└── main.jsx            # Application entry point
+├── components/
+│   ├── OcrUpload.tsx
+│   ├── NotificationsPanel.tsx
+│   ├── SettingsPanel.tsx
+│   └── ...
+├── controllers/
+│   ├── api.ts           # axios client + interceptors
+│   ├── useAuth.ts       # auth controller (SimpleJWT)
+│   ├── invoices.ts      # invoices API
+│   ├── notifications.ts # notifications API
+│   ├── ingest.ts        # OCR ingest API
+│   └── socket.ts        # WebSocket client
+├── i18n/
+│   ├── index.tsx        # i18n provider + hook
+│   └── locales/{en,fr}.json
+├── pages/
+│   ├── Dashboard.tsx
+│   ├── LoginForm.tsx
+│   └── RegisterForm.tsx
+└── App.jsx, main.jsx
 ```
 
 ## 🔐 Authentication Flow
@@ -129,12 +154,11 @@ src/
 3. User data stored in localStorage
 4. Session persists until logout
 
-### Future Implementation (Real Backend)
-1. User enters credentials
-2. Frontend sends request to Python API
-3. Backend validates against MySQL database
-4. JWT token returned and stored
-5. Token used for subsequent requests
+### Real Backend (current contract)
+1. Login → POST `/api/auth/jwt/create/` → `{access, refresh}` stored
+2. Me → GET `/api/auth/me/` returns user profile
+3. Axios adds `Authorization: Bearer <access>` automatically
+4. On 401, interceptor refreshes via `/api/auth/jwt/refresh/`
 
 ## 🗄️ Database Schema (Planned)
 
@@ -178,7 +202,7 @@ CREATE TABLE role_permissions (
 );
 ```
 
-## 🐍 Python Backend Roadmap
+## 🐍 Python Backend Roadmap (suggested)
 
 ### Phase 1: Basic Setup
 - [ ] FastAPI/Flask project structure
@@ -214,12 +238,45 @@ npm run preview      # Preview production build
 npm run lint         # Run ESLint
 ```
 
+### Environment
+
+Create a `.env` (or `.env.local`) at project root for Vite:
+
+```
+VITE_API_BASE_URL=/api
+# Optional: override proxy target for dev if different from default
+# VITE_PROXY_TARGET=http://localhost:8000
+# Optional: WebSocket base for realtime (Channels)
+VITE_WS_BASE_URL=ws://localhost:8000/ws/invoices/
+```
+
+During development, requests to `/api` are proxied to the Django backend (`http://localhost:8000` by default). In production, set `VITE_API_BASE_URL` to your deployed API URL.
+
+### Realtime
+- Frontend opens a WebSocket to `VITE_WS_BASE_URL` and passes `?token=<JWT>`.
+- Backend should emit invoice/notification events to subscribed user groups.
+
 ### Development Workflow
 1. **Frontend Development**: Work on React components and UI
 2. **Backend Planning**: Design API endpoints and database schema
 3. **Integration**: Replace mock data with real API calls
 4. **Testing**: Implement comprehensive testing suite
 5. **Deployment**: Deploy to production environment
+
+## 🚨 Known Issues & Difficulties
+
+### Authentication Setup Issues
+- **Django Template Path**: Django may default to looking for templates in the wrong directory when integrating with React frontend
+- **CORS Configuration**: Requires proper `django-cors-headers` setup to allow React dev server requests
+- **JWT Field Names**: Django authentication may expect `username` instead of `email` field depending on configuration
+- **API Base URL**: Frontend defaults to `http://localhost:9999/api` but Django typically runs on port 8000 - update `.env` accordingly
+- **Connection vs Authentication Errors**: "Failed to fetch" indicates connection issues, "401 Unauthorized" means connection works but credentials/format is wrong
+
+### Troubleshooting Steps
+1. **Connection Issues**: Check if Django backend is running and CORS is configured
+2. **Authentication Issues**: Use the debug button in LoginForm to see exact Django error responses
+3. **Field Format**: Try both `email` and `username` fields in login requests
+4. **Port Configuration**: Verify `VITE_API_BASE_URL` matches your Django server port
 
 ## 🧪 Testing
 

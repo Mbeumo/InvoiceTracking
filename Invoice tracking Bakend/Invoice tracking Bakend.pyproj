@@ -37,7 +37,21 @@
     <Compile Include="app\tests.py" />
     <Compile Include="app\views.py" />
     <Compile Include="app\__init__.py" />
-    <Compile Include="app\migrations\__init__.py" />
+    <Compile Include="invoice\admin.py" />
+    <Compile Include="invoice\apps.py" />
+    <Compile Include="invoice\migrations\__init__.py" />
+    <Compile Include="invoice\models.py" />
+    <Compile Include="invoice\ocr\engine.py" />
+    <Compile Include="invoice\ocr\types.py" />
+    <Compile Include="invoice\ocr\__init__.py" />
+    <Compile Include="invoice\permissions.py" />
+    <Compile Include="invoice\serializers.py" />
+    <Compile Include="invoice\signals.py" />
+    <Compile Include="invoice\tasks.py" />
+    <Compile Include="invoice\tests.py" />
+    <Compile Include="invoice\urls.py" />
+    <Compile Include="invoice\views.py" />
+    <Compile Include="invoice\__init__.py" />
     <Compile Include="Invoice_tracking_Bakend\asgi.py" />
     <Compile Include="Invoice_tracking_Bakend\celery.py" />
     <Compile Include="Invoice_tracking_Bakend\routing.py" />
@@ -48,7 +62,6 @@
     <Compile Include="Invoice_tracking_Bakend\wsgi.py" />
     <Compile Include="users\admin.py" />
     <Compile Include="users\apps.py" />
-    <Compile Include="users\migrations\__init__.py" />
     <Compile Include="users\models.py" />
     <Compile Include="users\serializers.py" />
     <Compile Include="users\tests.py" />
@@ -58,7 +71,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
-    <Folder Include="app\migrations\" />
     <Folder Include="app\static\" />
     <Folder Include="app\static\app\" />
     <Folder Include="app\static\app\content\" />
@@ -66,6 +78,10 @@
     <Folder Include="app\static\app\scripts\" />
     <Folder Include="app\templates\" />
     <Folder Include="app\templates\app\" />
+    <Folder Include="app\templates\email\" />
+    <Folder Include="invoice\" />
+    <Folder Include="invoice\migrations\" />
+    <Folder Include="invoice\ocr\" />
     <Folder Include="Invoice_tracking_Bakend\" />
     <Folder Include="static\" />
     <Folder Include="static\admin\" />
@@ -86,10 +102,11 @@
     <Folder Include="static\app\fonts\" />
     <Folder Include="static\app\scripts\" />
     <Folder Include="users\" />
-    <Folder Include="users\migrations\" />
     <Folder Include="users\__pycache__\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".env" />
+    <Content Include="app\templates\email\verifyemail.html" />
     <Content Include="requirements.txt" />
     <Content Include="db.sqlite3" />
     <Content Include="app\static\app\content\bootstrap.css" />

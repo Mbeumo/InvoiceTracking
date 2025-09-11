@@ -1,0 +1,25 @@
+{
+  "app.name": "FactureFlow",
+  "auth.login.title": "Connectez-vous à votre compte",
+  "auth.login.button": "Se connecter",
+  "auth.login.email": "Adresse email",
+  "auth.login.password": "Mot de passe",
+  "auth.login.demo": "Comptes de démonstration",
+  "auth.login.create": "Créer un compte",
+  "auth.register.title": "Créer un compte",
+  "auth.register.button": "Créer le compte",
+  "auth.register.back": "Retour à la connexion",
+  "nav.logout": "Déconnexion",
+  "dashboard.welcome": "Bienvenue dans FactureFlow",
+  "dashboard.subtitle": "Module d'authentification configuré avec succès.",
+  "settings.title": "Paramètres",
+  "settings.language": "Langue",
+  "settings.theme": "Thème",
+  "settings.theme.light": "Clair",
+  "settings.theme.dark": "Sombre"
+  ,"errors.fill_all_fields": "Veuillez remplir tous les champs"
+  ,"errors.invalid_credentials": "Email ou mot de passe incorrect"
+  ,"errors.registration_failed": "Une erreur est survenue lors de l'inscription"
+}
+
+

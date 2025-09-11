@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { AuthState, LoginCredentials, User } from '../types/auth'
-import { mockUsers, demoCredentials, rolePermissions } from '../data/users'
+import { AuthState, LoginCredentials, User, RegisterData, Permissions } from '../types/auth'
+import { AuthService } from '../services/apiService'
 
 /**
  * Authentication Controller Hook
@@ -25,151 +25,129 @@ export const useAuth = () => {
     });
 
     useEffect(() => {
-        // TODO: Replace with JWT token validation from backend
-        // Check if user has valid JWT token in localStorage/cookies
-        // Verify token with Python backend API
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
+        const init = async () => {
             try {
-                const user = JSON.parse(savedUser);
-                setAuthState({
-                    user,
-                    isAuthenticated: true,
-                    isLoading: false
-                });
-            } catch (error) {
+                const token = localStorage.getItem('authToken');
+                if (!token) {
+                    setAuthState(prev => ({ ...prev, isLoading: false }));
+                    return;
+                }
+                
+                // Check if we need to refresh permissions (every 5 minutes)
+                const cachedUser = localStorage.getItem('currentUser');
+                let shouldRefreshPermissions = true;
+                
+                if (cachedUser) {
+                    const userData = JSON.parse(cachedUser);
+                    const lastUpdate = userData.permission_last_updated;
+                    if (lastUpdate) {
+                        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+                        shouldRefreshPermissions = new Date(lastUpdate) < fiveMinutesAgo;
+                    }
+                }
+                
+                const data = shouldRefreshPermissions 
+                    ? await AuthService.getCurrentUser()
+                    : JSON.parse(cachedUser || '{}');
+                    
+                localStorage.setItem('currentUser', JSON.stringify(data));
+                setAuthState({ user: data, isAuthenticated: true, isLoading: false });
+            } catch (_) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('refreshToken');
                 localStorage.removeItem('currentUser');
-                setAuthState(prev => ({ ...prev, isLoading: false }));
+                setAuthState({ user: null, isAuthenticated: false, isLoading: false });
             }
-        } else {
-            setAuthState(prev => ({ ...prev, isLoading: false }));
-        }
+        };
+        init();
     }, []);
 
     const login = async (credentials: LoginCredentials): Promise<boolean> => {
         setAuthState(prev => ({ ...prev, isLoading: true }));
+        try {
+            const data = await AuthService.login(credentials.email, credentials.password);
+            const access = data.access || data.token;
+            const refresh = data.refresh || data.refresh_token;
+            if (access) localStorage.setItem('authToken', access);
+            if (refresh) localStorage.setItem('refreshToken', refresh);
 
-        // TODO: Replace with real API call to Python backend
-        // POST /api/auth/login
-        // {
-        //   "email": "user@example.com",
-        //   "password": "hashed_password"
-        // }
-        // Response: { "token": "jwt_token", "user": {...}, "refresh_token": "..." }
-        
-        // SIMULATION: Mock API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // TODO: Replace with backend validation
-        // Backend should:
-        // 1. Hash password with bcrypt
-        // 2. Query MySQL database for user
-        // 3. Verify password hash
-        // 4. Generate JWT token
-        // 5. Return user data and tokens
-        const validCredential = demoCredentials.find(
-            cred => cred.email === credentials.email && cred.password === credentials.password
-        );
-
-        if (validCredential) {
-            const user = mockUsers.find(u => u.email === credentials.email);
-            if (user) {
-                const updatedUser = { ...user, lastLogin: new Date().toISOString() };
-                
-                // TODO: Store JWT token instead of user object
-                // localStorage.setItem('authToken', jwtToken);
-                // localStorage.setItem('refreshToken', refreshToken);
-                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-                
-                setAuthState({
-                    user: updatedUser,
-                    isAuthenticated: true,
-                    isLoading: false
-                });
-                return true;
+            const me = await AuthService.getCurrentUser();
+            localStorage.setItem('currentUser', JSON.stringify(me));
+            setAuthState({ user: me, isAuthenticated: true, isLoading: false });
+            
+            //Trigger WebSocket event for dashboard refresh
+            if (window.dispatchEvent) {
+               window.dispatchEvent(new CustomEvent('user-login', { detail: me }));
             }
-        }
-
-        setAuthState(prev => ({ ...prev, isLoading: false }));
-        return false;
-    };
-
-    const register = async (userData: Omit<User, 'id' | 'permissions' | 'lastLogin'>): Promise<boolean> => {
-        setAuthState(prev => ({ ...prev, isLoading: true }));
-
-        // TODO: Replace with real API call to Python backend
-        // POST /api/auth/register
-        // {
-        //   "name": "User Name",
-        //   "email": "user@example.com",
-        //   "password": "plain_password",
-        //   "service": "accounting",
-        //   "role": "employee"
-        // }
-        // Backend should:
-        // 1. Hash password with bcrypt
-        // 2. Check if email exists in MySQL
-        // 3. Insert new user into database
-        // 4. Send email verification (optional)
-        // 5. Return success/failure
-        
-        // SIMULATION: Mock API delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // TODO: Replace with backend validation
-        const existingUser = mockUsers.find(u => u.email === userData.email);
-        if (existingUser) {
+            
+            return true;
+        } catch (error) {
+            console.error('Login error:', error);
             setAuthState(prev => ({ ...prev, isLoading: false }));
             return false;
         }
-
-        // TODO: Backend should generate proper UUID and handle permissions
-        const newUser: User = {
-            ...userData,
-            id: Date.now().toString(),
-            permissions: rolePermissions[userData.role] || rolePermissions.employee,
-            lastLogin: new Date().toISOString()
-        };
-
-        // TODO: Remove this mock data manipulation
-        mockUsers.push(newUser);
-
-        // TODO: Backend should return JWT token after successful registration
-        localStorage.setItem('currentUser', JSON.stringify(newUser));
-        setAuthState({
-            user: newUser,
-            isAuthenticated: true,
-            isLoading: false
-        });
-
-        return true;
+    };
+    const isSuperuser = (): boolean => {
+        return authState.user?.is_superuser === true;
     };
 
-    const logout = () => {
-        // TODO: Call backend logout endpoint
-        // POST /api/auth/logout
-        // Backend should:
-        // 1. Invalidate JWT token
-        // 2. Clear refresh token
-        // 3. Log logout event
-        
+
+    const register = async (userData: RegisterData): Promise<boolean> => {
+        setAuthState(prev => ({ ...prev, isLoading: true }));
+        try {
+            await AuthService.register(userData);
+            // After successful registration, auto-login
+            const loginOk = await login({ email: userData.email, password: userData.password });
+            if (!loginOk) {
+                setAuthState(prev => ({ ...prev, isLoading: false }));
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Registration error:', error);
+            setAuthState(prev => ({ ...prev, isLoading: false }));
+            return false;
+        }
+    };
+
+    const logout = async () => {
+        try {
+            await AuthService.logout();
+        } catch (_) {
+            // ignore
+        }
         localStorage.removeItem('currentUser');
-        // TODO: Also remove JWT tokens
-        // localStorage.removeItem('authToken');
-        // localStorage.removeItem('refreshToken');
-        
-        setAuthState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false
-        });
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        setAuthState({ user: null, isAuthenticated: false, isLoading: false });
     };
 
-    const hasPermission = (permission: string): boolean => {
-        // TODO: Backend should validate permissions on each request
-        // Frontend permission check is for UI purposes only
-        // Always verify permissions on backend API calls
-        return authState.user?.permissions.includes(permission as any) || false;
+    //const hasPermission = (permission: string): boolean => {
+    //    // Check if user has the specific permission from Django backend
+    //    if (!authState.user?.permission) return false;
+        
+    //    // Check both direct permissions and Django permission format
+    //    const userPermissions = authState.user.permission;
+    //    return userPermissions.includes(permission as any) || 
+    //           userPermissions.some(p => p.includes(permission));
+    //};
+    const hasPermission = (permission: string | null) => {
+        if (!permission) return true;
+        return authState.user?.permission?.some((p: Permissions) => p.codename === permission) || false;
+    };
+
+    const refreshPermissions = async (): Promise<boolean> => {
+        if (!authState.user?.id) return false;
+        
+        try {
+            const updatedUser = await AuthService.refreshUserPermissions(authState.user.id);
+            localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+            setAuthState(prev => ({ ...prev, user: updatedUser }));
+            return true;
+        } catch (error) {
+            console.error('Failed to refresh permissions:', error);
+            return false;
+        }
     };
 
     // TODO: Add these methods for future backend integration
@@ -183,6 +161,8 @@ export const useAuth = () => {
         login,
         register,
         logout,
-        hasPermission
+        isSuperuser,
+        hasPermission,
+        refreshPermissions
     };
 };
