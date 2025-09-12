@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /Invoice tracking Bakend/.env
 /InvoiceTracking/.env
+.env
