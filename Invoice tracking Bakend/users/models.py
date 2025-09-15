@@ -1,4 +1,4 @@
-﻿from sys import audit
+from sys import audit
 import uuid
 from django.db import models
 from django.utils import timezone
