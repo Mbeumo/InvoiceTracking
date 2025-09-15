@@ -1,4 +1,4 @@
-/**
+﻿/**
  * COMPREHENSIVE DATABASE MODELS FOR INVOICE TRACKING SYSTEM
  * 
  * These models define the complete database schema for a production-ready
