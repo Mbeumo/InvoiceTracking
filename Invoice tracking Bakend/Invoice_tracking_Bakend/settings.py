@@ -52,6 +52,8 @@ DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
 INSTALLED_APPS = [
     'app',
     'rest_framework_simplejwt.token_blacklist',
+    'django_celery_beat',
+    'django_celery_results',
     # Add your apps here to enable them
     'django.contrib.admin',
     'django.contrib.auth',
@@ -69,7 +71,7 @@ INSTALLED_APPS = [
     'channels',
     # Local apps
     'users',
-    'invoice'
+    'invoice',
     # 'invoices',
     # 'notifications',
     # 'analytics',
@@ -214,9 +216,32 @@ CHANNEL_LAYERS = {
 # Celery
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_RESULT_BACKEND_DB = 'django-db'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Celery Beat Schedule for automated tasks
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'send-automated-reminders': {
+        'task': 'invoice.tasks.send_automated_reminders',
+        'schedule': crontab(hour=9, minute=0),  # Daily at 9 AM
+    },
+    'run-workflow-automation': {
+        'task': 'invoice.tasks.run_workflow_automation',
+        'schedule': crontab(minute='*/15'),  # Every 15 minutes
+    },
+    'generate-predictive-insights': {
+        'task': 'invoice.tasks.generate_predictive_insights',
+        'schedule': crontab(hour=6, minute=0),  # Daily at 6 AM
+    },
+    'cleanup-old-data': {
+        'task': 'invoice.tasks.cleanup_old_data',
+        'schedule': crontab(hour=2, minute=0, day_of_week=0),  # Weekly on Sunday at 2 AM
+    },
+}
 
 # Email
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -243,3 +268,94 @@ CSRF_COOKIE_HTTPONLY = False
 X_FRAME_OPTIONS = "DENY"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField" 
+
+# AI and ML Configuration
+AI_SETTINGS = {
+    'OCR_ENABLED': env.bool('AI_OCR_ENABLED', True),
+    'FRAUD_DETECTION_ENABLED': env.bool('AI_FRAUD_DETECTION_ENABLED', True),
+    'ANOMALY_THRESHOLD': env.int('AI_ANOMALY_THRESHOLD', 70),
+    'AUTO_APPROVAL_THRESHOLD': env.float('AI_AUTO_APPROVAL_THRESHOLD', 1000.0),
+    'MODEL_UPDATE_INTERVAL': env.int('AI_MODEL_UPDATE_INTERVAL', 7),  # days
+}
+
+# Security Configuration
+SECURITY_SETTINGS = {
+    'AUDIT_LOG_RETENTION_DAYS': env.int('AUDIT_LOG_RETENTION_DAYS', 365),
+    'FAILED_LOGIN_THRESHOLD': env.int('FAILED_LOGIN_THRESHOLD', 5),
+    'ACCOUNT_LOCKOUT_DURATION': env.int('ACCOUNT_LOCKOUT_DURATION', 30),  # minutes
+    'SESSION_TIMEOUT': env.int('SESSION_TIMEOUT', 30),  # minutes
+    'REQUIRE_2FA_FOR_ADMIN': env.bool('REQUIRE_2FA_FOR_ADMIN', False),
+}
+
+# Notification Configuration
+NOTIFICATION_SETTINGS = {
+    'EMAIL_ENABLED': env.bool('NOTIFICATIONS_EMAIL_ENABLED', True),
+    'SMS_ENABLED': env.bool('NOTIFICATIONS_SMS_ENABLED', False),
+    'PUSH_ENABLED': env.bool('NOTIFICATIONS_PUSH_ENABLED', True),
+    'REMINDER_DAYS_BEFORE': env.list('REMINDER_DAYS_BEFORE', default=[7, 3, 1]),
+    'MAX_NOTIFICATIONS_PER_USER': env.int('MAX_NOTIFICATIONS_PER_USER', 100),
+}
+
+# Performance Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'invoice_tracker',
+        'TIMEOUT': 300,  # 5 minutes default
+    }
+}
+
+# Frontend URL for email links
+FRONTEND_URL = env.str('FRONTEND_URL', 'http://localhost:3000')
+
+# File Upload Configuration
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'invoice_tracker.log'),
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'invoice': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'users': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+# Create logs directory
+os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
