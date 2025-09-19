@@ -3,11 +3,12 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { RouteConfig } from './types';
 import { ProtectedRoute } from './ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
-
 // Lazy-loaded components
 const componentMap = {
+    Guess: React.lazy(() => import('../pages/GuessDashboard').then(m => ({ default: m.SmartTrackLanding }))),
     LoginForm: React.lazy(() => import('../pages/LoginForm').then(m => ({ default: m.LoginForm }))),
     Dashboard: React.lazy(() => import('../pages/Dashboard').then(m => ({ default: m.Dashboard }))),
+    RegisterForm: React.lazy(() => import('../pages/RegisterForm').then(m => ({ default: m.RegisterForm }))),
     InvoiceList: React.lazy(() => import('../pages/InvoiceList').then(m => ({ default: m.InvoiceList }))),
     InvoiceCard: React.lazy(() => import('../pages/InvoiceCard').then(m => ({ default: m.InvoiceCard }))),
     InvoiceCardDetail: React.lazy(() => import('../pages/InvoiceCardDetail').then(m => ({ default: m.InvoiceDetails }))),
@@ -20,8 +21,10 @@ const componentMap = {
 };
 
 const routeConfigs: RouteConfig[] = [
-    { path: '/', element: 'redirect', public: false, redirectTo: '/dashboard' },
+    //{ path: '/', element: 'redirect', public: false, redirectTo: '/dashboard' },
+    { path: '/', element: 'Guess', public: true, title: 'Guess' },
     { path: '/login', element: 'LoginForm', public: true, title: 'Login' },
+    { path: '/register', element: 'RegisterForm', public: true, title: 'register' },
     { path: '/dashboard', element: 'Dashboard', public: false, title: 'Dashboard' },
     { path: '/invoices', element: 'InvoiceList', public: false, title: 'Invoices', permissions: ['view_invoice'] },
     { path: '/invoices/create', element: 'InvoiceCard', public: false, title: 'Create Invoice', permissions: ['view_invoice'] },
@@ -37,22 +40,21 @@ interface AppRoutesProps {
     isAuthenticated: boolean;
     user: any;
     login: (credentials: any) => Promise<boolean>;
+    register: (data: any) => Promise<boolean>;
     isLoading: boolean;
-    setShowRegister: (show: boolean) => void;
 }
 
-const AppRoutes: React.FC<AppRoutesProps> = ({ isAuthenticated, user, login, isLoading, setShowRegister }) => {
+const AppRoutes: React.FC<AppRoutesProps> = ({ isAuthenticated, user, login, register, isLoading }) => {
     const renderRoute = (config: RouteConfig) => {
         const { path, element, public: isPublic, redirectTo, permissions = [] } = config;
-
-        if (element === 'redirect') {
+        if (element === 'Dashboard') {
             return (
                 <Route
                     key={path}
                     path={path}
                     element={
                         isAuthenticated && user
-                            ? <Navigate to={redirectTo!} replace />
+                            ? <Navigate to="/dashboard" replace />
                             : <Navigate to="/login" replace />
                     }
                 />
@@ -71,7 +73,27 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ isAuthenticated, user, login, isL
                                 <Suspense fallback={<LoadingSpinner />}>
                                     <componentMap.LoginForm
                                         onLogin={login}
-                                        onSwitchToRegister={() => setShowRegister(true)}
+                                        isLoading={isLoading}
+                                    />
+                                </Suspense>
+                            )
+                    }
+                />
+            );
+
+        }
+        if (element === 'RegisterForm') {
+            return (
+                <Route
+                    key={path}
+                    path={path}
+                    element={
+                        isAuthenticated && user
+                            ? <Navigate to="/dashboard" replace />
+                            : (
+                                <Suspense fallback={<LoadingSpinner />}>
+                                    <componentMap.RegisterForm
+                                        onRegister={register}
                                         isLoading={isLoading}
                                     />
                                 </Suspense>
@@ -81,8 +103,12 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ isAuthenticated, user, login, isL
             );
         }
 
+
         const Component = componentMap[element as keyof typeof componentMap];
-        if (!Component) return null;
+        if (!Component) {
+            console.warn(`Missing component for route: ${element}`);
+            return null;
+        }
 
         return (
             <Route

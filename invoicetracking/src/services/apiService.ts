@@ -1,7 +1,7 @@
 // API Service Layer for Django Backend Communication
 import api from '../controllers/api';
 import { API_ENDPOINTS } from './apiEndpoints';
-
+import { SettingsData } from '../hooks/useSettings';
 /**
  * API Service Layer for Django Backend Communication
  * 
@@ -54,6 +54,15 @@ export class AuthService {
       throw this.handleError(error);
     }
   }
+static async getServices(): Promise<{ id: string; name: string }[]> {
+    try {
+        const response = await api.get(API_ENDPOINTS.SERVICE.LIST);
+        return response.data;
+    } catch (error: any) {
+        throw this.handleError(error);
+    }
+}
+
 
   static async logout() {
     try {
@@ -69,6 +78,8 @@ export class AuthService {
       console.warn('Logout error:', error);
     }
   }
+
+
 
   static async getCurrentUser() {
     try {
@@ -213,7 +224,7 @@ export class InvoiceService {
   }
 
   private static handleError(error: any): ApiError {
-    console.error('AuthService Error:', {
+    console.error('InvoiceService Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -288,7 +299,7 @@ export class UserService {
   }
 
   private static handleError(error: any): ApiError {
-    console.error('AuthService Error:', {
+    console.error('UserService Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -343,7 +354,7 @@ export class AnalyticsService {
   }
 
   private static handleError(error: any): ApiError {
-    console.error('AuthService Error:', {
+    console.error('AnalyticService Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -398,7 +409,7 @@ export class NotificationService {
   }
 
   private static handleError(error: any): ApiError {
-    console.error('AuthService Error:', {
+    console.error('NotificationService Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -415,6 +426,53 @@ export class NotificationService {
       details: error.response?.data
     };
   }
+}
+//Services
+
+export class DepartmentService {
+    static async getServices(): Promise<{ service_id: string; name: string }[]> {
+        try {
+            const response = await api.get(API_ENDPOINTS.SERVICE.LIST);
+            return response.data;
+        } catch (error: any) {
+            throw this.handleError(error);
+        }
+    }
+    async getDepartmentsByUser(userId: string): Promise<{ id: string; name: string }[]> {
+        try {
+            const response = await api.get(`${API_ENDPOINTS.SERVICE.BY_USER}/${userId}`);
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error?.response?.data?.message || 'Failed to fetch user departments');
+        }
+    }
+
+    async getDepartmentsByService(serviceId: string): Promise<{ id: string; name: string }[]> {
+        try {
+            const response = await api.get(`${API_ENDPOINTS.SERVICE.BY_SERVICE}/${serviceId}`);
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error?.response?.data?.message || 'Failed to fetch service departments');
+        }
+    }
+    private static handleError(error: any): ApiError {
+        console.error('DepartmentService Error:', {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+            config: {
+                url: error.config?.url,
+                method: error.config?.method,
+                baseURL: error.config?.baseURL
+            }
+        });
+
+        return {
+            message: error.response?.data?.message || error.response?.data?.detail || error.message || 'An error occurred',
+            status: error.response?.status || 500,
+            details: error.response?.data
+        };
+    }
 }
 
 // File Service
@@ -459,7 +517,7 @@ export class FileService {
   }
 
   private static handleError(error: any): ApiError {
-    console.error('AuthService Error:', {
+    console.error('FileService Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -477,3 +535,92 @@ export class FileService {
     };
   }
 }
+
+// Settings Service
+// services/SettingsService.ts
+import api from "../controllers/api";
+import { API_ENDPOINTS } from "./apiEndpoints";
+import { SettingsData } from "../types/settings";
+import { ApiError } from "./apiService";
+
+export class SettingsService {
+    /**
+     * Fetch both user & system settings
+     */
+    static async getSettings(): Promise<SettingsData> {
+        try {
+            const response = await api.get(API_ENDPOINTS.SETTINGS.GET); // → "/settings/"
+            return response.data;
+        } catch (error: any) {
+            throw this.handleError(error);
+        }
+    }
+
+    /**
+     * Create new setting (POST /settings/)
+     */
+    static async createSetting(setting: {
+        key: string;
+        value: any;
+        setting_type?: string;
+        category?: string;
+    }): Promise<any> {
+        try {
+            const response = await api.post(API_ENDPOINTS.SETTINGS.GET, setting);
+            return response.data;
+        } catch (error: any) {
+            throw this.handleError(error);
+        }
+    }
+
+    /**
+     * Update a specific system setting
+     * (PUT /settings/<uuid:id>/update/)
+     */
+    static async updateSetting(id: string, setting: {
+        value: any;
+    }): Promise<any> {
+        try {
+            const response = await api.put(API_ENDPOINTS.SETTINGS.UPDATE(id), setting);
+            return response.data;
+        } catch (error: any) {
+            throw this.handleError(error);
+        }
+    }
+
+    /**
+     * Bulk update (if you want to send the whole structure at once)
+     */
+    /*static async updateAll(settings: SettingsData): Promise<SettingsData> {
+        try {
+            const response = await api.put(API_ENDPOINTS.SETTINGS.BULK_UPDATE, settings);
+            return response.data;
+        } catch (error: any) {
+            throw this.handleError(error);
+        }
+    }*/
+
+    private static handleError(error: any): ApiError {
+        console.error("SettingsService Error:", {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+            config: {
+                url: error.config?.url,
+                method: error.config?.method,
+                baseURL: error.config?.baseURL,
+            },
+        });
+
+        return {
+            message:
+                error.response?.data?.message ||
+                error.response?.data?.detail ||
+                error.message ||
+                "An error occurred",
+            status: error.response?.status || 500,
+            details: error.response?.data,
+        };
+    }
+}
+

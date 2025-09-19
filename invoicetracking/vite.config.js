@@ -9,7 +9,7 @@ export default defineConfig({
         proxy: {
             // Proxy API calls to Django during development
             '/api': {
-                target: process.env.VITE_PROXY_TARGET || 'http://localhost:8000',
+                target: process.env.VITE_API_BASE_URL || 'http://localhost:9000',
                 changeOrigin: true,
                 secure: false,
                 // Strip the /api prefix if your Django urls do not include it

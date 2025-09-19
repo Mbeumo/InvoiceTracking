@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../controllers/useAuth';
+import { useAuth } from './useAuth';
 import { Permissions } from '../types/auth';
 
 /**

@@ -5,7 +5,7 @@
     <Name>Invoice tracking Bakend</Name>
     <RootNamespace>Invoice tracking Bakend</RootNamespace>
     <TestFramework>Pytest</TestFramework>
-    <InterpreterId>MSBuild|myenv|$(MSBuildProjectFullPath)</InterpreterId>
+    <InterpreterId>MSBuild|trackenv|$(MSBuildProjectFullPath)</InterpreterId>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -17,7 +17,7 @@
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
-    <WebBrowserUrl>http://localhost</WebBrowserUrl>
+    <WebBrowserUrl>http://localhost:9999/</WebBrowserUrl>
     <LaunchProvider>Django launcher</LaunchProvider>
     <DjangoSettingsModule>Invoice_tracking_Bakend.settings</DjangoSettingsModule>
     <OutputPath>.</OutputPath>
@@ -32,20 +32,42 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ai_system\admin.py" />
+    <Compile Include="ai_system\apps.py" />
+    <Compile Include="ai_system\consumers.py" />
+    <Compile Include="ai_system\migrations\__init__.py" />
+    <Compile Include="ai_system\models.py" />
+    <Compile Include="ai_system\serializer.py" />
+    <Compile Include="ai_system\service.py" />
+    <Compile Include="ai_system\tasks.py" />
+    <Compile Include="ai_system\tests.py" />
+    <Compile Include="ai_system\urls.py" />
+    <Compile Include="ai_system\views.py" />
+    <Compile Include="ai_system\__init__.py" />
     <Compile Include="app\forms.py" />
+    <Compile Include="app\migrations\__init__.py" />
     <Compile Include="app\models.py" />
     <Compile Include="app\tests.py" />
     <Compile Include="app\views.py" />
     <Compile Include="app\__init__.py" />
+    <Compile Include="departments\admin.py" />
+    <Compile Include="departments\apps.py" />
+    <Compile Include="departments\migrations\__init__.py" />
+    <Compile Include="departments\models.py" />
+    <Compile Include="departments\serializer.py" />
+    <Compile Include="departments\tests.py" />
+    <Compile Include="departments\views.py" />
+    <Compile Include="departments\__init__.py" />
     <Compile Include="invoice\admin.py" />
     <Compile Include="invoice\apps.py" />
     <Compile Include="invoice\migrations\__init__.py" />
     <Compile Include="invoice\models.py" />
-    <Compile Include="invoice\ocr\engine.py" />
-    <Compile Include="invoice\ocr\types.py" />
-    <Compile Include="invoice\ocr\__init__.py" />
+    <Compile Include="ai_system\ocr\engine.py" />
+    <Compile Include="ai_system\ocr\types.py" />
+    <Compile Include="ai_system\ocr\__init__.py" />
     <Compile Include="invoice\permissions.py" />
     <Compile Include="invoice\serializers.py" />
+    <Compile Include="invoice\service.py" />
     <Compile Include="invoice\signals.py" />
     <Compile Include="invoice\tasks.py" />
     <Compile Include="invoice\tests.py" />
@@ -54,14 +76,28 @@
     <Compile Include="invoice\__init__.py" />
     <Compile Include="Invoice_tracking_Bakend\asgi.py" />
     <Compile Include="Invoice_tracking_Bakend\celery.py" />
+    <Compile Include="Invoice_tracking_Bakend\migrations\__init__.py" />
     <Compile Include="Invoice_tracking_Bakend\routing.py" />
     <Compile Include="manage.py" />
     <Compile Include="Invoice_tracking_Bakend\__init__.py" />
     <Compile Include="Invoice_tracking_Bakend\settings.py" />
     <Compile Include="Invoice_tracking_Bakend\urls.py" />
     <Compile Include="Invoice_tracking_Bakend\wsgi.py" />
+    <Compile Include="notifications\admin.py" />
+    <Compile Include="notifications\apps.py" />
+    <Compile Include="notifications\consumers.py" />
+    <Compile Include="notifications\migrations\__init__.py" />
+    <Compile Include="notifications\models.py" />
+    <Compile Include="notifications\serializer.py" />
+    <Compile Include="notifications\service.py" />
+    <Compile Include="notifications\tasks.py" />
+    <Compile Include="notifications\tests.py" />
+    <Compile Include="notifications\urls.py" />
+    <Compile Include="notifications\views.py" />
+    <Compile Include="notifications\__init__.py" />
     <Compile Include="users\admin.py" />
     <Compile Include="users\apps.py" />
+    <Compile Include="users\migrations\__init__.py" />
     <Compile Include="users\models.py" />
     <Compile Include="users\serializers.py" />
     <Compile Include="users\tests.py" />
@@ -70,7 +106,10 @@
     <Compile Include="users\__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="ai_system\" />
+    <Folder Include="ai_system\migrations\" />
     <Folder Include="app\" />
+    <Folder Include="app\migrations\" />
     <Folder Include="app\static\" />
     <Folder Include="app\static\app\" />
     <Folder Include="app\static\app\content\" />
@@ -79,10 +118,15 @@
     <Folder Include="app\templates\" />
     <Folder Include="app\templates\app\" />
     <Folder Include="app\templates\email\" />
+    <Folder Include="departments\" />
+    <Folder Include="departments\migrations\" />
     <Folder Include="invoice\" />
+    <Folder Include="ai_system\ocr\" />
     <Folder Include="invoice\migrations\" />
-    <Folder Include="invoice\ocr\" />
     <Folder Include="Invoice_tracking_Bakend\" />
+    <Folder Include="Invoice_tracking_Bakend\migrations\" />
+    <Folder Include="notifications\" />
+    <Folder Include="notifications\migrations\" />
     <Folder Include="static\" />
     <Folder Include="static\admin\" />
     <Folder Include="static\admin\css\" />
@@ -102,12 +146,15 @@
     <Folder Include="static\app\fonts\" />
     <Folder Include="static\app\scripts\" />
     <Folder Include="users\" />
+    <Folder Include="users\migrations\" />
     <Folder Include="users\__pycache__\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
+    <Content Include="app\templates\email\notifications.html" />
     <Content Include="app\templates\email\verifyemail.html" />
-    <Content Include="requirements.txt" />
+    <Content Include="departments\urls.py" />
+    <Content Include="pytest.ini" />
     <Content Include="db.sqlite3" />
     <Content Include="app\static\app\content\bootstrap.css" />
     <Content Include="app\static\app\content\bootstrap.min.css" />
@@ -137,6 +184,7 @@
     <Content Include="app\templates\app\layout.html" />
     <Content Include="app\templates\app\login.html" />
     <Content Include="app\templates\app\loginpartial.html" />
+    <Content Include="requirements.txt" />
     <Content Include="static\admin\css\autocomplete.css" />
     <Content Include="static\admin\css\base.css" />
     <Content Include="static\admin\css\changelists.css" />
@@ -295,10 +343,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Interpreter Include="myenv\">
-      <Id>myenv</Id>
+    <Interpreter Include="trackenv\">
+      <Id>trackenv</Id>
       <Version>3.13</Version>
-      <Description>myenv (Python 3.13 (64-bit))</Description>
+      <Description>trackenv (Python 3.13 (64-bit))</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>

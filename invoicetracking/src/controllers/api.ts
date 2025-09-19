@@ -1,7 +1,7 @@
 import axios from 'axios';
+import { API_ENDPOINTS } from '../services/apiEndpoints';
 
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9999/api';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9999/api/';
 
 
 export const api = axios.create({
@@ -33,7 +33,7 @@ api.interceptors.response.use(
                 try {
                     // Common Django SimpleJWT refresh endpoint
                     const { data } = await axios.post(
-                        `${apiBaseUrl}/auth/token/refresh`,
+                        `${apiBaseUrl}${API_ENDPOINTS.AUTH.REFRESH}`,
                         { refresh: refreshToken },
                         { withCredentials: true }
                     );

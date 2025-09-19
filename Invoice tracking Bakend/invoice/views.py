@@ -8,15 +8,20 @@ from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 
-from .models import Invoice, InvoiceComment, InvoiceTemplate
-from .models import Notification, AIProcessingResult, WorkflowRule, Service, Vendor
+from .models import Invoice, InvoiceComment, InvoiceTemplate,WorkflowRule
+from notifications.models import Notification
+#WorkflowRule, Service, Vendor
+from ai_system.models import  AIProcessingResult
 from .serializers import (
     InvoiceCommentSerializer, InvoiceSerializer, InvoiceCreateSerializer,
     InvoiceStatusUpdateSerializer, InvoiceTemplateSerializer
 )
 from .permissions import IsManagerOrReadOnly
-from .tasks import process_invoice_ocr, process_invoice_ai_pipeline, send_automated_reminders
-from .ai_services import workflow_service, analytics_service, notification_service
+from ai_system.tasks import process_invoice_ocr, process_invoice_ai_pipeline
+from notifications.tasks import send_automated_reminders
+#from .ai_services import workflow_service, analytics_service
+
+from notifications.service import notification_service
 
 
 """class SupplierViewSet(viewsets.ModelViewSet):
@@ -238,155 +243,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             "insights": insights,
             "generated_at": cache.get('insights_generated_at', timezone.now().isoformat())
         })
-
-
-class NotificationViewSet(viewsets.ModelViewSet):
-    """Enhanced notification management with real-time updates"""
-    serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ["type", "is_read", "priority"]
-    ordering_fields = ["created_at", "priority"]
-    
-    def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user)
-    
-    @action(detail=True, methods=["post"], url_path="mark-read")
-    def mark_read(self, request, pk=None):
-        """Mark notification as read"""
-        notification = self.get_object()
-        notification.mark_as_read()
-        return Response({"status": "marked as read"})
-    
-    @action(detail=False, methods=["post"], url_path="mark-all-read")
-    def mark_all_read(self, request):
-        """Mark all notifications as read"""
-        updated_count = Notification.objects.filter(
-            user=request.user,
-            is_read=False
-        ).update(is_read=True, read_at=timezone.now())
-        
-        return Response({"marked_read": updated_count})
-    
-    @action(detail=False, methods=["get"], url_path="unread-count")
-    def unread_count(self, request):
-        """Get count of unread notifications"""
-        count = Notification.objects.filter(
-            user=request.user,
-            is_read=False
-        ).count()
-        
-        return Response({"unread_count": count})
-
-
-class AIAnalyticsViewSet(viewsets.ViewSet):
-    """AI-powered analytics and insights"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    @action(detail=False, methods=["get"], url_path="dashboard-insights")
-    def dashboard_insights(self, request):
-        """Get AI insights for dashboard"""
-        try:
-            # Get recent AI processing results
-            recent_results = AIProcessingResult.objects.filter(
-                processing_status='completed',
-                created_at__gte=timezone.now() - timedelta(days=30)
-            ).select_related('invoice')
-            
-            # Calculate AI performance metrics
-            total_processed = recent_results.count()
-            avg_confidence = recent_results.aggregate(
-                avg_confidence=models.Avg('ocr_confidence')
-            )['avg_confidence'] or 0
-            
-            high_risk_count = recent_results.filter(
-                fraud_risk_score__gte=70
-            ).count()
-            
-            anomalies_detected = sum(
-                len(result.anomalies_detected) for result in recent_results
-            )
-            
-            return Response({
-                "ai_performance": {
-                    "total_processed": total_processed,
-                    "avg_ocr_confidence": round(avg_confidence, 2),
-                    "high_risk_invoices": high_risk_count,
-                    "anomalies_detected": anomalies_detected,
-                    "automation_rate": round((total_processed / max(total_processed, 1)) * 100, 1)
-                },
-                "insights": cache.get('predictive_insights', []),
-                "last_updated": timezone.now().isoformat()
-            })
-            
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @action(detail=False, methods=["post"], url_path="analyze-spending-patterns")
-    def analyze_spending_patterns(self, request):
-        """Analyze spending patterns using AI"""
-        try:
-            time_range = request.data.get('time_range', 'month')
-            service_filter = request.data.get('service', None)
-            
-            # Calculate date range
-            if time_range == 'week':
-                start_date = timezone.now().date() - timedelta(days=7)
-            elif time_range == 'month':
-                start_date = timezone.now().date() - timedelta(days=30)
-            elif time_range == 'quarter':
-                start_date = timezone.now().date() - timedelta(days=90)
-            else:
-                start_date = timezone.now().date() - timedelta(days=365)
-            
-            # Build query
-            query = Q(
-                status='paid',
-                payment_date__gte=start_date
-            )
-            
-            if service_filter:
-                query &= Q(current_service=service_filter)
-            
-            # Get spending data
-            spending_data = Invoice.objects.filter(query).aggregate(
-                total_amount=Sum('total_amount'),
-                avg_amount=Avg('total_amount'),
-                invoice_count=Count('id')
-            )
-            
-            # Vendor analysis
-            top_vendors = Invoice.objects.filter(query).values(
-                'vendor_name'
-            ).annotate(
-                total_spent=Sum('total_amount'),
-                invoice_count=Count('id')
-            ).order_by('-total_spent')[:10]
-            
-            # Service analysis
-            service_breakdown = Invoice.objects.filter(query).values(
-                'current_service__name'
-            ).annotate(
-                total_spent=Sum('total_amount'),
-                invoice_count=Count('id')
-            ).order_by('-total_spent')
-            
-            return Response({
-                "time_range": time_range,
-                "spending_summary": spending_data,
-                "top_vendors": list(top_vendors),
-                "service_breakdown": list(service_breakdown),
-                "analysis_date": timezone.now().isoformat()
-            })
-            
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
 
 class WorkflowRuleViewSet(viewsets.ModelViewSet):
     """Workflow automation rule management"""

@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
+    "django_seed",
     'auditlog',
     # Third-party
     'rest_framework',
@@ -72,8 +74,10 @@ INSTALLED_APPS = [
     # Local apps
     'users',
     'invoice',
+    'ai_system',
+    'departments',
     # 'invoices',
-    # 'notifications',
+    'notifications',
     # 'analytics',
     # 'integrations',
     
@@ -153,6 +157,14 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 AUTH_USER_MODEL = "users.User"
+NOTIFICATION_MODEL = "notifications.Notification"
+WORKFLOW_MODEL = "invoice.WorkflowRule"
+SERVICE_MODEL = "departments.Service"
+INVOICE_MODEL = "invoice.Invoice"
+TEMPLATE_MODEL = "invoice.InvoiceTemplate"
+USER_NOT = "notifications.UserNotification"
+WORK_SERV = "invoice.WorkflowRuleServiceLink"
+DEPART_MODEL = "departments.Service"
 # APPEND_SLASH = False
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/

@@ -16,8 +16,9 @@ from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 from django.conf import settings
 from django.template.loader import render_to_string
-
-from .serializers import RegisterSerializer, UserSerializer
+from django.utils import timezone
+from .models import SystemConfiguration
+from .serializers import RegisterSerializer, UserSerializer, SystemConfigurationSerializer, SettingsResponseSerializer
 # Create your views here.
 User = get_user_model()
 class IsSuperuserOrManager(permissions.BasePermission):
@@ -48,9 +49,11 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
-    def post(self, request):
-        # Your registration logic here
-        set_actor(request.user if request.user.is_authenticated else None)
+
+    def perform_create(self, serializer):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        set_actor(actor)
+        serializer.save()
         return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
 
 class MeView(APIView):
@@ -159,3 +162,32 @@ def activate_email(request, uidb64, token):
         return Response({'detail': 'Email verified successfully'})
     else:
         return Response({'detail': 'Invalid or expired token'}, status=400)
+
+class SettingsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user_data = UserSerializer(request.user).data
+        system_configs = SystemConfiguration.objects.all()
+        system_data = SystemConfigurationSerializer(system_configs, many=True).data
+
+        payload = {
+            "user": user_data,
+            "system": system_data
+        }
+        serializer = SettingsResponseSerializer(payload)
+        return Response(serializer.data)
+
+class SystemConfigurationUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsSuperuserOrManager]
+
+    def post(self, request):
+        updates = request.data  # { "key1": value1, "key2": value2 }
+        for key, value in updates.items():
+            try:
+                conf = SystemConfiguration.objects.get(pk=key)
+                conf.value = str(value)
+                conf.save(update_fields=["value", "updated_at"])
+            except SystemConfiguration.DoesNotExist:
+                continue
+        return Response({"status": "ok"})

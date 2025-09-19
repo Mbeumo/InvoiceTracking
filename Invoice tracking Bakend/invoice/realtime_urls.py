@@ -2,10 +2,13 @@
 Real-time WebSocket URLs for invoice updates
 """
 from django.urls import path
-from . import consumers
+from .consumers import InvoiceConsumer
 
-websocket_urlpatterns = [
-    path('ws/invoices/', consumers.InvoiceConsumer.as_asgi()),
-    path('ws/notifications/', consumers.NotificationConsumer.as_asgi()),
-    path('ws/ai-insights/', consumers.AIInsightsConsumer.as_asgi()),
+from notifications.consumers import NotificationConsumer
+from ai_system.consumers import AIInsightsConsumer
+
+urlpatterns = [
+    path('ws/invoices/', InvoiceConsumer.as_asgi()),
+    path('ws/notifications/', NotificationConsumer.as_asgi()),
+    path('ws/ai-insights/', AIInsightsConsumer.as_asgi()),
 ]

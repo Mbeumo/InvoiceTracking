@@ -1,4 +1,4 @@
-﻿/**
+/**
  * COMPREHENSIVE DATABASE MODELS FOR INVOICE TRACKING SYSTEM
  * 
  * These models define the complete database schema for a production-ready
@@ -6,7 +6,7 @@
  * 
  * FUTURE IMPLEMENTATION: Sync with Python backend SQLAlchemy models
  */
-
+import {User} from "./Auth"
 // ============================================================================
 // USER MANAGEMENT
 // ============================================================================
@@ -501,7 +501,26 @@ export interface SystemSetting {
     updatedAt: string;             // ISO timestamp
     updatedBy: string;             // FK to users.id
 }
+export interface SettingsResponse {
+    user: User;
+    system: SystemSetting[];
+}
 
+export interface SettingsData {
+    user: User;
+    appearance: {
+        theme: "light" | "dark";
+        language: string;
+    };
+    security: {
+        sessionTimeout: number;
+        mfaEnabled: boolean;
+    };
+    notifications: {
+        email: boolean;
+        sms: boolean;
+    };
+}
 // ============================================================================
 // AUDIT LOGS (SYSTEM LEVEL)
 // ============================================================================

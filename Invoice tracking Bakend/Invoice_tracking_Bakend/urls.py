@@ -45,7 +45,9 @@ urlpatterns = [
 
     path('ws/', include("invoice.urls")),
 
-    path("api/invoices/", include("invoice.urls")),
+    path("api/", include("invoice.urls")),
+    path("api/", include("departments.urls")),
+
     # path("api/notifications/", include("notifications.urls")),
     # path("api/analytics/", include("analytics.urls")),
     # path("api/integrations/", include("integrations.urls")),

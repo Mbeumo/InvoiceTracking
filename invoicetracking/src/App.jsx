@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
-import { useAuth } from './controllers/useAuth';
+import { useAuth } from './hooks/useAuth';
 import { RegisterForm } from './pages/RegisterForm';
 import { useI18n } from './i18n';
 import './App.css';
@@ -8,9 +8,8 @@ import AppRoutes from './routes'; // Import your optimized route definitions
 import Navigation from './components/Navigation';
 
 function App() {
-    const { user, isAuthenticated, isLoading, login, register, logout } = useAuth();
+    const { user, isAuthenticated, isLoading, login, logout, register } = useAuth();
     const { t } = useI18n();
-    const [showRegister, setShowRegister] = useState(false);
 
     // ⏳ Loading screen
     if (isLoading) {
@@ -21,18 +20,6 @@ function App() {
         );
     }
 
-    // 🧾 Registration flow
-    if (!isAuthenticated && showRegister) {
-        return (
-            <div className="min-h-screen w-full">
-                <RegisterForm
-                    onRegister={register}
-                    onBackToLogin={() => setShowRegister(false)}
-                    isLoading={isLoading}
-                />
-            </div>
-        );
-    }
 
     // 🧠 Main app with routing
     return (
@@ -82,8 +69,8 @@ function App() {
                         isAuthenticated={isAuthenticated}
                         user={user}
                         login={login}
+                        register={ register }
                         isLoading={isLoading}
-                        setShowRegister={setShowRegister}
                     />
                 </main>
             </div>

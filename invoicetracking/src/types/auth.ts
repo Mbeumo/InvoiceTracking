@@ -16,14 +16,14 @@ export interface User {
     avatarUrl?: string;
     
     // Organization
-    serviceId: string;
+    service_id: string;
     role: UserRole;
     managerId?: string;
     location?: string;
     timezone?: string;
-    
+    service: string;
     // Authentication & Security
-    isActive: boolean;
+    is_active: boolean;
     emailVerified: boolean;
     lastLogin?: string;
     failedLoginAttempts: number;
@@ -68,7 +68,7 @@ export interface RegisterData {
     name: string;
     email: string;
     password: string;
-    service: string;
+    service_id: string;
     role: UserRole;
     avatar_url?: string;
     timezone?: string;

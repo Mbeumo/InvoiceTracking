@@ -5,7 +5,8 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from .models import Invoice, Notification, AIProcessingResult
-
+from notifications.models import Notification
+from ai_system.models import AIProcessingResult
 
 @receiver(post_save, sender=Notification)
 def broadcast_notification(sender, instance: Notification, created: bool, **kwargs):
@@ -43,6 +44,20 @@ def broadcast_notification(sender, instance: Notification, created: bool, **kwar
             })
 @receiver(post_save, sender=Invoice)
 def broadcast_invoice_change(sender, instance: Invoice, created: bool, **kwargs):
+    channel_layer = get_channel_layer()
+    event = {
+        "type": "invoice_update",
+        "data": {
+            "id": instance.id,
+            "number": instance.number,
+            "status": instance.status,
+            "amount": str(instance.amount),
+            "supplier": str(instance.supplier),
+            "created": created,
+        },
+    }
+    async_to_sync(channel_layer.group_send)("invoices", event) 
+
 @receiver(post_save, sender=AIProcessingResult)
 def broadcast_ai_processing_complete(sender, instance: AIProcessingResult, created: bool, **kwargs):
     """Broadcast AI processing completion via WebSocket"""

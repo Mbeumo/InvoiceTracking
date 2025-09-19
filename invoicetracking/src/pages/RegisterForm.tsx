@@ -14,15 +14,19 @@
  * - Send welcome email after registration
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { UserPlus, Eye, EyeOff, User, Lock, Mail, Building, AlertCircle, ArrowLeft } from 'lucide-react'
 import { RegisterData, UserRole } from '../types/auth'
 import { useI18n } from '../i18n'
+import { useDepartments } from '../hooks/useDepartments'
+import {
+    useNavigate,
+} from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 interface RegisterFormProps {
-    onRegister: (userData: RegisterData) => Promise<boolean>;
-    onBackToLogin: () => void;
-    isLoading: boolean;
+    onRegister: (userData: RegisterData) => Promise<boolean>
+    isLoading: boolean
 }
 
 interface RegisterFormData {
@@ -30,31 +34,35 @@ interface RegisterFormData {
     email: string;
     password: string;
     confirmPassword: string;
-    service: string;
+    service_id: string;
     role: UserRole;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackToLogin, isLoading }) => {
+
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, isLoading}) => {
     const { t } = useI18n();
     const [formData, setFormData] = useState<RegisterFormData>({
         name: '',
         email: '',
         password: '',
         confirmPassword: '',
-        service: '',
+        service_id: '',
         role: 'employee'
     });
+    const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
+    const { departments, loading: depsLoading, error: depsError } = useDepartments()
+
     //modify this 
-    const services = [
+    /*const services = [
         { id: 'accounting', name: 'Comptabilité' },
         { id: 'purchasing', name: 'Achats' },
         { id: 'finance', name: 'Finance' },
         { id: 'management', name: 'Direction' },
         { id: 'hr', name: 'Ressources Humaines' }
-    ];
+    ];*/
 
     const roles = [
         { id: 'employee', name: 'Employé' },
@@ -67,7 +75,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
         setError('');
 
         // Validation
-        if (!formData.name || !formData.email || !formData.password || !formData.service) {
+        if (!formData.name || !formData.email || !formData.password || !formData.service_id) {
             setError(t('errors.fill_all_fields'));
             return;
         }
@@ -87,11 +95,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
             setError('Veuillez entrer une adresse email valide');
             return;
         }
+       
 
         const userData = {
             name: formData.name,
             email: formData.email,
-            service: formData.service,
+            service_id: formData.service_id,
             role: formData.role,
             password: formData.password,
             avatar_url: `https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop`
@@ -100,7 +109,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
         const success = await onRegister(userData);
         if (!success) {
             setError(t('errors.registration_failed'));
+            return;
         }
+        navigate('/dashboard');
+
     };
 
     const updateFormData = (field: keyof RegisterFormData, value: string) => {
@@ -108,12 +120,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
     };
 
     return (
-        <div className="min-h-screen w-full bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-950 flex items-center justify-center p-2 sm:p-4">
+        <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-950 flex items-center justify-center p-2 sm:p-4">
             <div className="w-full max-w-md space-y-6">
                 {/* Main Registration Form */}
                 <div className="bg-white dark:bg-gray-900 dark:text-gray-100 rounded-2xl shadow-xl p-6 sm:p-8">
                     <div className="text-center mb-6 sm:mb-8">
-                        <div className="mx-auto h-12 w-12 sm:h-16 sm:w-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
+                        <div className="mx-auto h-12 w-12 sm:h-16 sm:w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
                             <UserPlus className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                         </div>
                         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{t('auth.register.title')}</h2>
@@ -131,7 +143,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => updateFormData('name', e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                     placeholder="Votre nom complet"
                                     disabled={isLoading}
                                 />
@@ -148,7 +160,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => updateFormData('email', e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                     placeholder="votre.email@company.com"
                                     disabled={isLoading}
                                 />
@@ -156,26 +168,32 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Service *
-                            </label>
+                            <label className="block text-sm font-medium mb-2">Service *</label>
                             <div className="relative">
-                                <Building className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <select
-                                    value={formData.service}
-                                    onChange={(e) => updateFormData('service', e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                    disabled={isLoading}
+                                    value={formData.service_id}
+                                    onChange={(e) => updateFormData('service_id', e.target.value)}
+                                    disabled={isLoading || depsLoading}
+                                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800"
                                 >
-                                    <option value="">Sélectionnez votre service</option>
-                                    {services.map((service) => (
-                                        <option key={service.id} value={service.id}>
-                                            {service.name}
+                                    <option value="">
+                                        {depsLoading
+                                            ? 'Chargement...'
+                                            : depsError
+                                                ? 'Erreur de chargement'
+                                                : 'Sélectionnez votre service'}
+                                    </option>
+                                    {departments.map((d) => (
+                                        <option key={d.service_id} value={d.service_id}>
+                                            {d.name}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         </div>
+
+
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -184,7 +202,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                             <select
                                 value={formData.role}
                                 onChange={(e) => updateFormData('role', e.target.value as UserRole)}
-                                className="w-full px-3 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                className="w-full px-3 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                 disabled={isLoading}
                             >
                                 {roles.map((role) => (
@@ -205,7 +223,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                                     type={showPassword ? 'text' : 'password'}
                                     value={formData.password}
                                     onChange={(e) => updateFormData('password', e.target.value)}
-                                    className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                     placeholder="Minimum 8 caractères"
                                     disabled={isLoading}
                                 />
@@ -230,7 +248,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     value={formData.confirmPassword}
                                     onChange={(e) => updateFormData('confirmPassword', e.target.value)}
-                                    className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-500 focus:border-transparent text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                     placeholder="Confirmez votre mot de passe"
                                     disabled={isLoading}
                                 />
@@ -255,7 +273,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base"
+                            className="w-full bg-blue-600 hover:bg-green-700 text-white font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base"
                         >
                             {isLoading ? (
                                 <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
@@ -270,7 +288,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onBackTo
 
                     <div className="mt-6 text-center">
                         <button
-                            onClick={onBackToLogin}
+                            onClick={() => navigate('/login')}
                             disabled={isLoading}
                             className="flex items-center justify-center w-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors text-sm sm:text-base"
                         >

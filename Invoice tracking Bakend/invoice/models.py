@@ -76,11 +76,21 @@ class Invoice(models.Model):
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     current_service = models.CharField(max_length=255)
-    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True
+    )
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
 
     approval_level = models.IntegerField(default=0)
-    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_invoices")
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name="approved_invoices"
+    )
     approved_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
 
@@ -90,8 +100,18 @@ class Invoice(models.Model):
     discount_due_date = models.DateField(null=True, blank=True)
 
     file = models.FileField(upload_to="invoices/")
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_invoices")
-    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="updated_invoices")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.PROTECT, 
+        related_name="created_invoices"
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name="updated_invoices"
+    )
 
     version = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -100,11 +120,18 @@ class Invoice(models.Model):
     raw_text = models.TextField(blank=True)  # Full OCR output
     ocr_confidence = models.FloatField(null=True, blank=True)  # Confidence score from OCR engine
     matched_template = models.ForeignKey(
-        InvoiceTemplate,
+        settings.TEMPLATE_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="matched_invoices"
+    )
+    workflow = models.ForeignKey(
+        settings.WORKFLOW_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workflow_invoices"
     )
 
     class Meta:
@@ -112,10 +139,10 @@ class Invoice(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.vendor.name} #{self.number}"
+        return f"{self.vendor_name} #{self.number}"
 
 class InvoiceAttachment(models.Model):
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="attachments")
+    invoice = models.ForeignKey(settings.INVOICE_MODEL, on_delete=models.CASCADE, related_name="attachments")
     file_name = models.CharField(max_length=255)
     file_path = models.CharField(max_length=500)
     file_size = models.BigIntegerField()
@@ -125,7 +152,7 @@ class InvoiceAttachment(models.Model):
     description = models.TextField(blank=True)
 
 class InvoiceLineItem(models.Model):
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="line_items")
+    invoice = models.ForeignKey(settings.INVOICE_MODEL, on_delete=models.CASCADE, related_name="line_items")
     description = models.CharField(max_length=255)
     quantity = models.IntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -151,7 +178,7 @@ class InvoiceHistory(models.Model):
         BULK_OPERATION = "bulk_operation"
         SYSTEM_ACTION = "system_action"
 
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="history")
+    invoice = models.ForeignKey(settings.INVOICE_MODEL, on_delete=models.CASCADE, related_name="history")
     action = models.CharField(max_length=255)
     action_type = models.CharField(max_length=50, choices=ActionType.choices)
 
@@ -173,13 +200,71 @@ class InvoiceHistory(models.Model):
     session_id = models.CharField(max_length=255, blank=True)
 
 class InvoiceComment(models.Model):
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="comments")
+    invoice = models.ForeignKey(settings.INVOICE_MODEL, on_delete=models.CASCADE, related_name="comments")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return f"Comment by {self.user} on {self.invoice_id}" 
+        return f"Comment by {self.user} on {self.invoice_id}"
+
+
+class WorkflowRule(models.Model):
+    TRIGGER_CHOICES = [
+        ('event', 'Event'),
+        ('time', 'Time'),
+        ('manual', 'Manual'),
+    ]
+
+    ACTION_CHOICES = [
+        ('notify', 'Notify'),
+        ('approve', 'Approve'),
+        ('escalate', 'Escalate'),
+        ('assign', 'Assign'),
+    ]
+
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    trigger_type = models.CharField(max_length=20, choices=TRIGGER_CHOICES)
+    trigger_conditions = models.JSONField(blank=True, null=True)
+    action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    action_parameters = models.JSONField(blank=True, null=True)
+
+    # Placeholder for future many-to-many relationship
+    services = models.ManyToManyField(
+        settings.SERVICE_MODEL,
+        through= settings.WORK_SERV,
+        related_name='services_in_department'
+    )
+
+
+    priority = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_workflow_rules'
+    )
+
+    def __str__(self):
+        return f"{self.name} ({self.trigger_type} → {self.action_type})"
+class WorkflowRuleServiceLink(models.Model):
+    workflow_rule = models.ForeignKey(settings.WORKFLOW_MODEL, on_delete=models.CASCADE)
+    service = models.ForeignKey(settings.SERVICE_MODEL, on_delete=models.CASCADE)
+
+    # Metadata fields
+    scope = models.CharField(max_length=100, blank=True)
+    is_enabled = models.BooleanField(default=True)
+    activation_date = models.DateTimeField(null=True, blank=True)
+
+    added_on = models.DateTimeField(auto_now_add=True)
+    approved = models.BooleanField(default=False)
+    def __str__(self):
+        return f"{self.workflow_rule.name} ↔ {self.service.name}"
 
 auditlog.register(Invoice)
 # auditlog.register(InvoiceLineItem)

@@ -14,16 +14,19 @@
  */
 
 import React, { useState } from 'react';
-import { useAuth } from '../controllers/useAuth'; // <-- import your hook
+import { useAuth } from '../hooks/useAuth'; // <-- import your hook
 import { LoginCredentials } from '../types/auth';
 import { LogIn, Eye, EyeOff, User, Lock, AlertCircle, UserPlus } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { useNavigate } from 'react-router-dom';
 
 
-export const LoginForm: React.FC<{ onSwitchToRegister: () => void }> = ({ onSwitchToRegister }) => {
+export const LoginForm: React.FC<{
+    onLogin: (credentials: LoginCredentials) => Promise<boolean>
+    isLoading?: boolean
+}> = ({ onLogin }) => {
     const { t } = useI18n();
-    const { login, isLoading, logout } = useAuth(); // <-- use hook
+    const { login, isLoading } = useAuth(); // <-- use hook
     const [credentials, setCredentials] = useState<LoginCredentials>({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -52,7 +55,7 @@ export const LoginForm: React.FC<{ onSwitchToRegister: () => void }> = ({ onSwit
             } else if (success) {
                 window.location.reload();
                 navigate('/dashboard'); // ✅ Redirect here
-                console.log("User permissions:", user?.permissions);
+                console.log("User permissions:", users?.permissions);
 
             }
             
@@ -196,7 +199,7 @@ export const LoginForm: React.FC<{ onSwitchToRegister: () => void }> = ({ onSwit
                     <div className="mt-6 text-center space-y-3">
                         <p className="text-gray-600 dark:text-gray-300 mb-3 text-sm sm:text-base">Vous n'avez pas de compte ?</p>
                         <button
-                            onClick={onSwitchToRegister}
+                            onClick={ () => navigate('/register') }
                             disabled={isLoading}
                             className="flex items-center justify-center w-full text-green-600 hover:text-green-700 font-medium transition-colors text-sm sm:text-base"
                         >
