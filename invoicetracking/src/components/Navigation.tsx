@@ -22,7 +22,7 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ user, className = '' }) => {
     const location = useLocation();
-    const { isSuperuser } = useAuth();
+    const { isSuperuser, isAuthenticated } = useAuth();
     const [mobileOpen, setMobileOpen] = useState(false);
 
     const navigationItems = [

@@ -65,6 +65,7 @@
     <Compile Include="ai_system\ocr\engine.py" />
     <Compile Include="ai_system\ocr\types.py" />
     <Compile Include="ai_system\ocr\__init__.py" />
+    <Compile Include="invoice\ocr_utils.py" />
     <Compile Include="invoice\permissions.py" />
     <Compile Include="invoice\serializers.py" />
     <Compile Include="invoice\service.py" />
@@ -154,6 +155,7 @@
     <Content Include="app\templates\email\notifications.html" />
     <Content Include="app\templates\email\verifyemail.html" />
     <Content Include="departments\urls.py" />
+    <Content Include="departments\useRealtime.ts" />
     <Content Include="pytest.ini" />
     <Content Include="db.sqlite3" />
     <Content Include="app\static\app\content\bootstrap.css" />

@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     EXPORT: 'invoices/export/', // TODO: Replace with your Django invoice export endpoint
     BULK_DELETE: 'invoices/bulk-delete/', // TODO: Replace with your Django bulk delete endpoint
     SEARCH: 'invoices/search/', // TODO: Replace with your Django invoice search endpoint
+    UPLOAD: 'invoices/ocr-upload/' 
   },
 
   // User management endpoints

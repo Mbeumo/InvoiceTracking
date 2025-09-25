@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SettingsService } from "../services/apiService"; // your API wrapper
 import { useTheme } from "../controllers/theme";
 import { useI18n } from "../i18n";
-import { SettingsData } from "../types/DatabaseModels"; }
+import { SettingsData } from "../types/DatabaseModels"; 
 
 
 export function useSettings() {

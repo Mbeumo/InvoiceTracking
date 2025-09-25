@@ -222,6 +222,22 @@ export class InvoiceService {
       throw this.handleError(error);
     }
   }
+    static async uploadInvoiceFile(file: File) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await api.post(API_ENDPOINTS.INVOICES.UPLOAD, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            return response.data;
+        } catch (error: any) {
+            throw this.handleError(error);
+        }
+    }
 
   private static handleError(error: any): ApiError {
     console.error('InvoiceService Error:', {

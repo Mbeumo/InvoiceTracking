@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
     Save,
@@ -18,9 +17,9 @@ export const Settings = () => {
     const [saving, setSaving] = useState(false);
     const { isSuperuser } = useAuth();
 
-    if (!settings) {
+    /*if (!settings) {
         return <div className="text-gray-500 p-6">Loading settings...</div>;
-    }
+    }*/
 
     const tabs = [
         { id: "profile", label: "Profile", icon: User },

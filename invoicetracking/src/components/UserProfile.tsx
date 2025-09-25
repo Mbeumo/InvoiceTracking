@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Settings, LogOut, Shield, Clock, Mail } from 'lucide-react';
 import { User as UserType } from '../types/auth';
-import { useAuth } from '../controllers/useAuth';
+import { useAuth } from '../hooks/useAuth';
 interface UserProfileProps {
     user: UserType;
     onLogout: () => void;

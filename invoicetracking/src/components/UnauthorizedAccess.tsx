@@ -8,7 +8,7 @@ interface UnauthorizedAccessProps {
   message?: string;
 }
 
-const UnauthorizedAccess: React.FC<UnauthorizedAccessProps> = ({ 
+export const UnauthorizedAccess: React.FC<UnauthorizedAccessProps> = ({ 
   isAuthenticated = false, 
   message = "You don't have permission to access this page." 
 }) => {
@@ -61,5 +61,3 @@ const UnauthorizedAccess: React.FC<UnauthorizedAccessProps> = ({
     </div>
   );
 };
-
-export default UnauthorizedAccess;

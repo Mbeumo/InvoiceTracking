@@ -172,62 +172,68 @@ export interface Service {
 // ============================================================================
 
 export interface Invoice {
-    // Core Invoice Data
-    id: string;                    // UUID primary key
-    number: string;                // Invoice number (unique)
-    vendorId: string;              // FK to vendors.id
-    vendorName: string;            // Denormalized vendor name
-    vendorEmail?: string;          // Vendor contact email
-    vendorPhone?: string;          // Vendor contact phone
-    
-    // Financial Information
-    subtotal: number;              // Amount before tax
-    taxAmount: number;             // Tax amount
-    totalAmount: number;           // Total amount (subtotal + tax)
-    currency: string;              // Currency code (EUR, USD, etc.)
-    exchangeRate?: number;         // Exchange rate if different from base currency
-    baseCurrencyAmount?: number;   // Amount in base currency
-    
-    // Invoice Details
-    description: string;           // Invoice description
-    lineItems: InvoiceLineItem[];  // Detailed line items
-    notes?: string;                // Internal notes
-    externalReference?: string;    // Vendor's invoice number
-    file: string;
+    id?: string; // UUID, optional for insert
+    // Vendor Info
+    number: string;
+    vendor_name: string;
+    vendor_email?: string;
+    vendor_phone?: string;
 
-    // Dates & Timing
-    invoiceDate: string;           // Date on invoice
-    receivedDate: string;          // Date received
-    dueDate: string;               // Payment due date
-    paymentDate?: string;          // Date paid
-    
-    // Workflow & Status
-    status: InvoiceStatus;         // Current status
-    currentService: string;        // FK to services.id
-    assignedTo: string;            // FK to users.id
-    priority: InvoicePriority;     // Priority level
-    
-    // Approval Process
-    approvalLevel: number;         // Current approval level
-    approvedBy?: string;           // FK to users.id
-    approvedAt?: string;           // ISO timestamp
-    rejectionReason?: string;      // Reason if rejected
-    
-    // Business Rules
-    paymentTerms: number;          // Payment terms in days
-    lateFees?: number;             // Late payment fees
-    discountAmount?: number;       // Early payment discount
-    discountDueDate?: string;      // Discount deadline
-    
-    // Audit & Metadata
-    createdAt: string;             // ISO timestamp
-    updatedAt: string;             // ISO timestamp
-    createdBy: string;             // FK to users.id
-    updatedBy: string;             // FK to users.id
-    version: number;               // Version number for tracking changes
-    
-    // Attachments
-    attachments?: InvoiceAttachment[]; // Related files
+    // Financials
+    subtotal: number;
+    tax_amount: number;
+    total_amount: number;
+    currency: string;
+    exchange_rate?: number;
+    base_currency_amount?: number;
+
+    // Description & Notes
+    description?: string;
+    notes?: string;
+    external_reference?: string;
+
+    // Dates
+    invoice_date: string;
+    issue_date: string;
+    due_date: string;
+    payment_date?: string;
+    discount_due_date?: string;
+
+    // Status & Workflow
+    status: string;
+    current_service: string;
+    assigned_to?: string;
+    priority: string;
+
+    // Approval
+    approval_level: number;
+    approved_by?: string;
+    approved_at?: string;
+    rejection_reason?: string;
+
+    // Payment Terms
+    payment_terms: number;
+    late_fees?: number;
+    discount_amount?: number;
+
+    // File & Metadata
+    file: string;
+    created_by: string;
+    updated_by?: string;
+    version: number;
+    created_at?: string;
+    updated_at?: string;
+
+    // OCR & Matching
+    raw_text?: string;
+    ocr_confidence?: number;
+    matched_template?: string;
+    workflow?: string;
+
+    // Derived Fields (optional, from serializer)
+    days_until_due?: number;
+    is_overdue?: boolean;
+    comments_count?: number;
 }
 
 export interface InvoiceLineItem {

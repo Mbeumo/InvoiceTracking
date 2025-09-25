@@ -1,119 +1,95 @@
-import React, { useState } from 'react';
-import { Invoice } from '../types/DatabaseModels';
-import { User,Permissions} from '../types/auth';
-import { InvoiceCard } from './InvoiceCard';
-import { InvoiceDetails } from './InvoiceCardDetail';
-import { Plus } from 'lucide-react';
-import { Toolbar } from '../components/Toolbar';
-import { Filters } from '../components/Filters';
-import { Card } from '../components/Card';
-import { Section } from '../components/Section';
-import { Stat } from '../components/Stat';
+import React, { useState } from "react";
+import { Invoice } from "../types/DatabaseModels";
+import { User } from "../types/auth";
+import { Filters } from "../components/Filters";
+import { Stat } from "../components/Stat";
+import { Section } from "../components/Section";
+import { Card } from "../components/Card";
+import { CreateInvoiceModal } from "./CreateInvoice";
+import { InvoiceCard } from "../components/InvoiceCard";
 
 interface InvoiceListProps {
-    invoices: Invoice[];
+    invoices?: Invoice[] | null; // allow null/undefined
     user: User;
-    onUpdate: (invoiceId: string, updates: Partial<Invoice>) => void;
+    onUpdate: (id: string, updates: Partial<Invoice>) => void;
+    onDelete: (id: string) => void;
+    onCreate: (invoice: Partial<Invoice>) => void;
+    onFilterChange: (filters: { search?: string; status?: string; service?: string }) => void;
 }
 
-export const InvoiceList: React.FC<InvoiceListProps> = ({ invoices, user, onUpdate }) => {
-    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [serviceFilter, setServiceFilter] = useState('all');
+export const InvoiceList: React.FC<InvoiceListProps> = ({
+    invoices,
+    user,
+    onUpdate,
+    onDelete,
+    onCreate,
+    onFilterChange,
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Filter invoices based on permissions
-    const hasInvoicePermission = user?.permission ? (
-        (p: Permissions) => p.codename === 'view_invoice'
-    ) : false;
+    // ✅ Normalize invoices to a safe array
+    const safeInvoices = Array.isArray(invoices) ? invoices : [];
 
-    const visibleInvoices = hasInvoicePermission
-        ? invoices || [] 
-        : (invoices || []).filter(inv => inv.currentService === user.serviceId);
-
-    const filteredInvoices = visibleInvoices.filter(invoice => {
-        const matchesSearch =
-            invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            invoice.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            invoice.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-        const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-        const matchesService = serviceFilter === 'all' || invoice.currentService === serviceFilter;
-
-        return matchesSearch && matchesStatus && matchesService;
-    });
-
-    // Calculate statistics
-    const stats = {
-        total: filteredInvoices.length,
-        overdue: filteredInvoices.filter(inv => new Date(inv.dueDate) < new Date() && inv.status !== 'paid').length,
-        pending: filteredInvoices.filter(inv => inv.status === 'pending_approval').length,
-        paid: filteredInvoices.filter(inv => inv.status === 'paid').length
-    };
+    // Quick stats
+    const stats = [
+        { label: "Total", value: safeInvoices.length },
+        { label: "Pending", value: safeInvoices.filter((i) => i.status === "pending_approval").length },
+        { label: "Approved", value: safeInvoices.filter((i) => i.status === "approved").length },
+        { label: "Rejected", value: safeInvoices.filter((i) => i.status === "rejected").length },
+    ];
 
     return (
-        <div className="space-y-6">
-            {/* Statistics Overview */}
+        <div className="space-y-8">
+            {/* Stats */}
             <Section>
-                <Stat label="Total Invoices" value={stats.total} />
-                <Stat label="Overdue" value={stats.overdue} subtitle="Requires attention" />
-                <Stat label="Pending Approval" value={stats.pending} subtitle="Awaiting review" />
-                <Stat label="Paid" value={stats.paid} subtitle="Completed" />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {stats.map((s) => (
+                        <Stat key={s.label} label={s.label} value={s.value} />
+                    ))}
+                </div>
             </Section>
 
-            {/* Filters and Search */}
-            <Card>
-                <Toolbar
-                    left={
-                        <Filters
-                            search={searchTerm}
-                            onSearch={setSearchTerm}
-                            status={statusFilter}
-                            onStatus={setStatusFilter}
-                            service={serviceFilter}
-                            onService={setServiceFilter}
-                        />
-                    }
-                    right={
-                        user.permission?( (p: Permissions) => p.codename === 'view_invoice')  && (
-                            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center transition-colors">
-                                <Plus className="h-4 w-4 mr-2" />
-                                New Invoice
-                            </button>
-                        ) : false 
-                    }
-                />
-            </Card>
-
-            {/* Invoice List */}
+            {/* Filters */}
             <Section>
-                {filteredInvoices.map((invoice) => (
-                    <InvoiceCard
-                        key={invoice.id}
-                        invoice={invoice}
-                        onClick={() => setSelectedInvoice(invoice)}
-                    />
-                ))}
+                <Filters onChange={onFilterChange} />
             </Section>
 
-            {filteredInvoices.length === 0 && (
-                <Card>
-                    <div className="text-center py-12">
-                        <div className="text-gray-400 text-4xl mb-4">📋</div>
-                        <p className="text-gray-500">No invoices match the search criteria</p>
+            {/* Invoice grid */}
+            <Section>
+                {safeInvoices.length > 0 ? (
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+                        {safeInvoices.map((invoice) => (
+                            <InvoiceCard
+                                key={invoice.id}
+                                invoice={invoice}
+                                user={user}
+                                onUpdate={onUpdate}
+                                onDelete={onDelete}
+                            />
+                        ))}
                     </div>
-                </Card>
-            )}
-
-            {/* Invoice Details Modal */}
-            {selectedInvoice && (
-                <InvoiceDetails
-                    invoice={selectedInvoice}
-                    user={user}
-                    onClose={() => setSelectedInvoice(null)}
-                    onUpdate={onUpdate}
-                />
-            )}
+                ) : (
+                    <Card>
+                        <div className="text-center text-gray-500 py-12">
+                            No invoices found. Try adjusting your filters or create a new invoice.
+                            <div className="mt-4">
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700"
+                                >
+                                    + New Invoice
+                                </button>
+                            </div>
+                        </div>
+                        <CreateInvoiceModal
+                            isOpen={isModalOpen}
+                            onClose={() => setIsModalOpen(false)}
+                            onSubmit={onCreate}
+                            user={user}
+                        />
+                    </Card>
+                )}
+            </Section>
         </div>
     );
 };

@@ -17,8 +17,8 @@ urlpatterns = [
     path('change-password/', change_password, name='change-password'),
     path('verify-email/<uuid:user_id>/', verify_email, name='verify-email'),
     path('activate/<uidb64>/<token>/', activate_email, name='activate-email'),
-    path('settings/',SettingsView.as_view(),name='settings')
-    path('settingsi<uuid:id>/update/',SystemConfigurationUpdateView.as_view(),name='-update-user-settings')
+    path('settings/',SettingsView.as_view(),name='settings'),
+    path('settingsi<uuid:id>/update/',SystemConfigurationUpdateView.as_view(),name='-update-user-settings'),
 
     path('', include(router.urls)),
 

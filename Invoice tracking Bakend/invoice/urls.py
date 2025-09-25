@@ -15,5 +15,7 @@ router.register(r"workflow-rules", WorkflowRuleViewSet, basename="workflow-rule"
 urlpatterns = [
     path("", include(router.urls)),
     # Real-time endpoints
+    #path('invoices/<uuid:pk>/upload/', InvoiceFileUploadView.as_view(), name='invoice-upload'),
+
     path("realtime/invoice-updates/", include("invoice.realtime_urls")),
 ]

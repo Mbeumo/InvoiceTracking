@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useI18n } from '../i18n';
+import { useI18n } from '../i18n/';
 import { FileText, RefreshCw, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { fetchInvoices } from '../controllers/invoices';
 import { fetchNotifications } from '../controllers/notifications';

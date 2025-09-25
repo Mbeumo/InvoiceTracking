@@ -1,15 +1,29 @@
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, status, viewsets,parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import HttpResponse
 from django.db.models import Q, Count, Sum
 from django.db import models
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
 from django.utils import timezone
-from datetime import datetime, timedelta
-
+from datetime import datetime
+from decimal import Decimal
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from django.utils.dateparse import parse_date
+from django.db import transaction
+from django.core.files.uploadedfile import UploadedFile
+from pytesseract import image_to_string
+from PIL import Image
+from .ocr_utils import perform_ocr_and_extract_data, get_image_from_uploaded_file
+import json
+import io
+import re
 from .models import Invoice, InvoiceComment, InvoiceTemplate,WorkflowRule
 from notifications.models import Notification
+
 #WorkflowRule, Service, Vendor
 from ai_system.models import  AIProcessingResult
 from .serializers import (
@@ -42,12 +56,15 @@ class InvoiceTemplateViewSet(viewsets.ModelViewSet):
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
-    queryset = Invoice.objects.select_related("supplier", "created_by", "matched_template").all()
+    queryset = Invoice.objects.select_related("assigned_to", "created_by", "matched_template").all()
     serializer_class = InvoiceSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    filterset_fields = ["status", "supplier", "due_date"]
-    search_fields = ["number", "supplier__name", "raw_text"]
+    filter_backends = [DjangoFilterBackend,filters.OrderingFilter]
+
+    
+    filterset_fields = ["status", "current_service", "due_date"]
+    search_fields = ["number", "vendor_name", "raw_text"]
     ordering_fields = ["created_at", "due_date", "amount"]
 
     def get_serializer_class(self):
@@ -243,6 +260,108 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             "insights": insights,
             "generated_at": cache.get('insights_generated_at', timezone.now().isoformat())
         })
+    action(detail=False, methods=["post"], url_path="ocr-upload")
+    def ocr_upload(self, request):
+        uploaded_file = request.FILES.get("file")
+
+        if not uploaded_file:
+            return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Convert uploaded file to an image format suitable for OCR
+            image_for_ocr = get_image_from_uploaded_file(uploaded_file)
+            extracted_data, raw_text, ocr_confidence = perform_ocr_and_extract_data(image_for_ocr)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"OCR processing failed: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Prepare data for serializer, starting with OCR extracted data
+        data_for_serializer = {
+            "vendor_name": extracted_data.get("vendor_name"),
+            "invoice_date": extracted_data.get("invoice_date"),
+            "due_date": extracted_data.get("due_date"),
+            "total_amount": extracted_data.get("total_amount"),
+            "currency": extracted_data.get("currency"),
+            "number": extracted_data.get("number"),
+            "raw_text": raw_text,
+            "ocr_confidence": ocr_confidence,
+            "file": uploaded_file, # Attach the original file
+        }
+
+        # Apply manual overrides from request.data, ensuring they take precedence
+        # request.data is a QueryDict for multipart/form-data, which can contain both file and other fields.
+        # We iterate through the fields that can be overridden and check if they are explicitly provided
+        # in the request.data (excluding the file itself).
+        for field in ["vendor_name", "invoice_date", "due_date", "total_amount", "currency", "number"]:
+            # If the field is explicitly provided in request.data, it overrides the OCR-extracted value.
+            # An empty string '' is considered a valid override to clear a field.
+            if field in request.data:
+                # For fields like vendor_name, invoice_date, etc., if an empty string is provided,
+                # it should be treated as clearing the field, which means setting it to None.
+                # Otherwise, use the provided value.
+                if request.data[field] == '':
+                    data_for_serializer[field] = None
+                else:
+                    data_for_serializer[field] = request.data[field]
+
+class InvoiceOCRUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def post(self, request):
+        uploaded_file: UploadedFile = request.FILES.get('file')
+        invoice_id = request.data.get('invoice_id')
+
+        if not uploaded_file:
+            return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            image = Image.open(uploaded_file)
+            raw_text = image_to_string(image)
+        except Exception as e:
+            return Response({'detail': f'OCR failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Simple regex-based extraction (replace with structured parser if needed)
+        vendor_name = self.extract_vendor_name(raw_text)
+        invoice_number = self.extract_invoice_number(raw_text)
+        total_amount = self.extract_total_amount(raw_text)
+        invoice_date = self.extract_invoice_date(raw_text)
+
+        with transaction.atomic():
+            if invoice_id:
+                invoice = Invoice.objects.get(pk=invoice_id)
+            else:
+                invoice = Invoice(created_by=request.user)
+
+            invoice.file = uploaded_file
+            invoice.raw_text = raw_text
+            invoice.ocr_confidence = 0.85  # Placeholder confidence
+            invoice.vendor_name = vendor_name or invoice.vendor_name
+            invoice.number = invoice_number or invoice.number
+            invoice.total_amount = total_amount or invoice.total_amount
+            invoice.invoice_date = invoice_date or invoice.invoice_date
+            invoice.updated_by = request.user
+            invoice.save()
+
+        serializer = InvoiceSerializer(invoice)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def extract_vendor_name(self, text: str) -> str:
+        match = re.search(r'(?i)vendor[:\s]+([A-Za-z0-9 &]+)', text)
+        return match.group(1).strip() if match else None
+
+    def extract_invoice_number(self, text: str) -> str:
+        match = re.search(r'(?i)invoice\s+number[:\s]*([A-Z0-9\-]+)', text)
+        return match.group(1).strip() if match else None
+
+    def extract_total_amount(self, text: str) -> float:
+        match = re.search(r'(?i)total[:\s]*\$?([\d,]+\.\d{2})', text)
+        return float(match.group(1).replace(',', '')) if match else None
+
+    def extract_invoice_date(self, text: str):
+        match = re.search(r'(?i)date[:\s]*([0-9]{4}-[0-9]{2}-[0-9]{2})', text)
+        return parse_date(match.group(1)) if match else None
 
 class WorkflowRuleViewSet(viewsets.ModelViewSet):
     """Workflow automation rule management"""

@@ -64,6 +64,32 @@ class UserSerializer(serializers.ModelSerializer):
             UserSettings.objects.create(user=instance, settings=defaults)
     """
 
+DEFAULT_USER_SETTINGS = [
+    # Appearance
+    {"key": "appearance.theme", "value": "light", "setting_type": "string", "category": "appearance", "is_editable": True},
+    {"key": "appearance.language", "value": "en", "setting_type": "string", "category": "appearance", "is_editable": True},
+
+    # Security
+    {"key": "security.sessionTimeout", "value": "30", "setting_type": "integer", "category": "security", "is_editable": True},
+    {"key": "security.mfaEnabled", "value": "false", "setting_type": "boolean", "category": "security", "is_editable": True},
+
+    # Notifications
+    {"key": "notifications.email", "value": "true", "setting_type": "boolean", "category": "notifications", "is_editable": True},
+    {"key": "notifications.sms", "value": "false", "setting_type": "boolean", "category": "notifications", "is_editable": True},
+]
+@receiver(post_save, sender=get_user_model())
+def create_default_user_settings(sender, instance, created, **kwargs):
+    if created:
+        for setting in DEFAULT_USER_SETTINGS:
+            SystemConfiguration.objects.create(
+                key=setting["key"],
+                value=setting["value"],
+                setting_type=setting["setting_type"],
+                category=setting["category"],
+                is_editable=setting["is_editable"],
+                user=instance  # link to the registered user
+            )
+            return Response({"detail": "Settings updated successfully"})
 
 def validate_service_id(self, value):
     try:
