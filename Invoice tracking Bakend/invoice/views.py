@@ -1,7 +1,7 @@
 from rest_framework import permissions, status, viewsets,parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.http import HttpResponse
 from django.db.models import Q, Count, Sum
 from django.db import models
@@ -20,6 +20,9 @@ from PIL import Image
 from .ocr_utils import perform_ocr_and_extract_data, get_image_from_uploaded_file
 import json
 import io
+from django.core.cache import cache
+
+from .tasks import compute_analytics, CACHE_KEY,invoice_ocr_task
 import re
 from .models import Invoice, InvoiceComment, InvoiceTemplate,WorkflowRule
 from notifications.models import Notification
@@ -52,33 +55,33 @@ class InvoiceTemplateViewSet(viewsets.ModelViewSet):
     queryset = InvoiceTemplate.objects.all()
     serializer_class = InvoiceTemplateSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ["supplier", "enabled"]
+    filterset_fields = ["vendor_name", "enabled"]
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related("assigned_to", "created_by", "matched_template").all()
     serializer_class = InvoiceSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     filter_backends = [DjangoFilterBackend,filters.OrderingFilter]
 
     
-    filterset_fields = ["status", "current_service", "due_date"]
+    filterset_fields = ["status", "current_service", "due_date", "assigned_to"]
     search_fields = ["number", "vendor_name", "raw_text"]
-    ordering_fields = ["created_at", "due_date", "amount"]
+    ordering_fields = ["created_at", "due_date", "total_amount"]
 
     def get_serializer_class(self):
-        if self.action == 'create':
+        # Use a simpler serializer for creation to avoid 400s on missing read-only/derived fields
+        if getattr(self, 'action', None) == 'create':
             return InvoiceCreateSerializer
-        elif self.action == 'update_status':
-            return InvoiceStatusUpdateSerializer
         return InvoiceSerializer
 
     def perform_create(self, serializer):
-        invoice = serializer.save(created_by=self.request.user)
-        # Trigger complete AI processing pipeline
-        if invoice.file:
-            process_invoice_ai_pipeline.delay(invoice.id)
+        # Save the invoice with auditing fields
+        instance = serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        # If a file is attached, trigger asynchronous OCR processing
+        if instance.file:
+            invoice_ocr_task.delay(instance.id)
 
     @action(detail=True, methods=["patch"], url_path="status")
     def update_status(self, request, pk=None):
@@ -260,7 +263,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             "insights": insights,
             "generated_at": cache.get('insights_generated_at', timezone.now().isoformat())
         })
-    action(detail=False, methods=["post"], url_path="ocr-upload")
+    @action(detail=False, methods=["post"], url_path="ocr-upload")
     def ocr_upload(self, request):
         uploaded_file = request.FILES.get("file")
 
@@ -304,6 +307,12 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     data_for_serializer[field] = None
                 else:
                     data_for_serializer[field] = request.data[field]
+        serializer = InvoiceSerializer(data=data_for_serializer, context={"request": request})
+        if serializer.is_valid():
+            instance = serializer.save(created_by=request.user)
+            return Response(InvoiceSerializer(instance).data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class InvoiceOCRUploadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -395,3 +404,28 @@ class WorkflowRuleViewSet(viewsets.ModelViewSet):
             "action_type": rule.action_type,
             "action_parameters": rule.action_parameters
         })
+
+
+
+class AnalyticsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """
+        Return cached analytics. If missing, trigger compute_analytics synchronously (or return empty and enqueue).
+        Accept query param 'force_refresh=true' to recompute immediately (synchronously) - use with caution.
+        """
+        force = request.query_params.get("force_refresh", "false").lower() in ("1", "true", "yes")
+        data = cache.get(ANALYTICS_KEY)
+        if data and not force:
+            return Response(data)
+
+        if force:
+            # compute synchronously (only if admin or internal; else consider asynchronous)
+            result = compute_analytics.apply()  # runs task synchronously
+            new_data = cache.get(ANALYTICS_KEY) or {}
+            return Response(new_data if new_data else {"status": "computing"}, status=status.HTTP_200_OK)
+
+        # If no cache, enqueue compute and return 202 with message
+        compute_analytics.delay()
+        return Response({"status": "queued", "message": "Analytics are being computed; try again shortly."}, status=status.HTTP_202_ACCEPTED)

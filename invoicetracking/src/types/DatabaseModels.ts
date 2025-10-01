@@ -6,7 +6,7 @@
  * 
  * FUTURE IMPLEMENTATION: Sync with Python backend SQLAlchemy models
  */
-import {User} from "./Auth"
+import {User} from "./auth"
 // ============================================================================
 // USER MANAGEMENT
 // ============================================================================
@@ -172,7 +172,7 @@ export interface Service {
 // ============================================================================
 
 export interface Invoice {
-    id?: string; // UUID, optional for insert
+    id: number; // UUID, optional for insert
     // Vendor Info
     number: string;
     vendor_name: string;
@@ -495,7 +495,7 @@ export interface ReportSchedule {
 // ============================================================================
 
 export interface SystemSetting {
-    id: string;                    // Setting key
+    key : string;                    // Setting key
     value: any;                    // Setting value
     type: 'string' | 'number' | 'boolean' | 'json';
     description?: string;          // Setting description
@@ -504,19 +504,21 @@ export interface SystemSetting {
     validation?: string;           // Validation rules
     
     // Metadata
-    updatedAt: string;             // ISO timestamp
-    updatedBy: string;             // FK to users.id
+    updated_at: string;             // ISO timestamp
+    updated_by: string;             // FK to users.id
 }
 export interface SettingsResponse {
     user: User;
     system: SystemSetting[];
 }
 
+// Flat format (API)
+
+// Nested format (used in app state/UI)
 export interface SettingsData {
-    user: User;
     appearance: {
         theme: "light" | "dark";
-        language: string;
+        language: "en" | "fr";
     };
     security: {
         sessionTimeout: number;
@@ -526,7 +528,20 @@ export interface SettingsData {
         email: boolean;
         sms: boolean;
     };
+    superuser?: {
+        auditLogsEnabled?: boolean;
+        allowUserImpersonation?: boolean;
+        systemWideNotifications?: boolean;
+    };
+    profile?: {
+        name?: string;
+        email?: string;
+        avatar?: string;
+        timezone?: string;
+    };
+    user: string; // track current user for updatess
 }
+
 // ============================================================================
 // AUDIT LOGS (SYSTEM LEVEL)
 // ============================================================================

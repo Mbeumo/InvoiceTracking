@@ -65,7 +65,7 @@ class Invoice(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    currency = models.CharField(max_length=10, default="USD")
+    currency = models.CharField(max_length=10, default="FCFA")
     exchange_rate = models.FloatField(null=True, blank=True)
     base_currency_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
@@ -99,7 +99,7 @@ class Invoice(models.Model):
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     discount_due_date = models.DateField(null=True, blank=True)
 
-    file = models.FileField(upload_to="invoices/")
+    file = models.FileField(upload_to="invoices/",null=True,blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.PROTECT, 

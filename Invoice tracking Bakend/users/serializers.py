@@ -13,9 +13,9 @@ def get_user_permissions(user):
         perms = set()
 
         # 1. Direct permissions (only if you later add PermissionsMixin)
-        """if hasattr(user, 'user_permissions'):
+        if hasattr(user, 'user_permissions'):
             perms.update(user.user_permissions.all())
-            """
+            
         # 2. Group permissions via role
         try:
             group = Group.objects.get(name=user.role)
@@ -77,19 +77,7 @@ DEFAULT_USER_SETTINGS = [
     {"key": "notifications.email", "value": "true", "setting_type": "boolean", "category": "notifications", "is_editable": True},
     {"key": "notifications.sms", "value": "false", "setting_type": "boolean", "category": "notifications", "is_editable": True},
 ]
-@receiver(post_save, sender=get_user_model())
-def create_default_user_settings(sender, instance, created, **kwargs):
-    if created:
-        for setting in DEFAULT_USER_SETTINGS:
-            SystemConfiguration.objects.create(
-                key=setting["key"],
-                value=setting["value"],
-                setting_type=setting["setting_type"],
-                category=setting["category"],
-                is_editable=setting["is_editable"],
-                user=instance  # link to the registered user
-            )
-            return Response({"detail": "Settings updated successfully"})
+
 
 def validate_service_id(self, value):
     try:
@@ -118,7 +106,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.service_id = service  
         user.save()
         return user
-
+    @receiver(post_save, sender=get_user_model())
+    def create_default_user_settings(sender, instance, created, **kwargs):
+        if created:
+            for setting in DEFAULT_USER_SETTINGS:
+                SystemConfiguration.objects.create(
+                    key=setting["key"],
+                    value=setting["value"],
+                    setting_type=setting["setting_type"],
+                    category=setting["category"],
+                    is_editable=setting["is_editable"],
+                    user=instance  # link to the registered user
+                )
 class SystemConfigurationSerializer(serializers.ModelSerializer):
     value = serializers.SerializerMethodField()
 
@@ -148,3 +147,101 @@ class SystemConfigurationSerializer(serializers.ModelSerializer):
 class SettingsResponseSerializer(serializers.Serializer):
     user = UserSerializer()
     system = SystemConfigurationSerializer(many=True)
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ["id", "codename", "name", "content_type"]
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Group
+        fields = ["id", "name", "permissions"]
+
+
+class UserPermissionUpdateSerializer(serializers.Serializer):
+    add_permissions = serializers.ListField(child=serializers.CharField(), required=False)
+    remove_permissions = serializers.ListField(child=serializers.CharField(), required=False)
+
+    def save(self, **kwargs):
+        user = self.context["user"]
+        add = self.validated_data.get("add_permissions", [])
+        remove = self.validated_data.get("remove_permissions", [])
+
+        # Resolve by codename across all apps
+        for codename in add:
+            try:
+                perm = Permission.objects.get(codename=codename)
+                user.user_permissions.add(perm)
+            except Permission.DoesNotExist:
+                raise serializers.ValidationError({"add_permissions": f"Permission '{codename}' not found"})
+        for codename in remove:
+            try:
+                perm = Permission.objects.get(codename=codename)
+                user.user_permissions.remove(perm)
+            except Permission.DoesNotExist:
+                raise serializers.ValidationError({"remove_permissions": f"Permission '{codename}' not found"})
+        user.save()
+        return user
+
+
+class UserGroupUpdateSerializer(serializers.Serializer):
+    set_groups = serializers.ListField(child=serializers.CharField(), required=False)
+    add_groups = serializers.ListField(child=serializers.CharField(), required=False)
+    remove_groups = serializers.ListField(child=serializers.CharField(), required=False)
+
+    def save(self, **kwargs):
+        user = self.context["user"]
+        if "set_groups" in self.validated_data:
+            names = self.validated_data.get("set_groups", [])
+            groups = Group.objects.filter(name__in=names)
+            if groups.count() != len(names):
+                missing = set(names) - set(groups.values_list("name", flat=True))
+                raise serializers.ValidationError({"set_groups": f"Groups not found: {', '.join(missing)}"})
+            user.groups.set(groups)
+        for name in self.validated_data.get("add_groups", []):
+            group, _ = Group.objects.get_or_create(name=name)
+            user.groups.add(group)
+        for name in self.validated_data.get("remove_groups", []):
+            try:
+                group = Group.objects.get(name=name)
+                user.groups.remove(group)
+            except Group.DoesNotExist:
+                raise serializers.ValidationError({"remove_groups": f"Group '{name}' not found"})
+        user.save()
+        return user
+
+
+class GroupPermissionUpdateSerializer(serializers.Serializer):
+    set_permissions = serializers.ListField(child=serializers.CharField(), required=False)
+    add_permissions = serializers.ListField(child=serializers.CharField(), required=False)
+    remove_permissions = serializers.ListField(child=serializers.CharField(), required=False)
+
+    def save(self, **kwargs):
+        group = self.context["group"]
+        if "set_permissions" in self.validated_data:
+            codenames = self.validated_data.get("set_permissions", [])
+            perms = Permission.objects.filter(codename__in=codenames)
+            if perms.count() != len(codenames):
+                missing = set(codenames) - set(perms.values_list("codename", flat=True))
+                raise serializers.ValidationError({"set_permissions": f"Permissions not found: {', '.join(missing)}"})
+            group.permissions.set(perms)
+        for codename in self.validated_data.get("add_permissions", []):
+            try:
+                perm = Permission.objects.get(codename=codename)
+                group.permissions.add(perm)
+            except Permission.DoesNotExist:
+                raise serializers.ValidationError({"add_permissions": f"Permission '{codename}' not found"})
+        for codename in self.validated_data.get("remove_permissions", []):
+            try:
+                perm = Permission.objects.get(codename=codename)
+                group.permissions.remove(perm)
+            except Permission.DoesNotExist:
+                raise serializers.ValidationError({"remove_permissions": f"Permission '{codename}' not found"})
+        group.save()
+        return group
+    

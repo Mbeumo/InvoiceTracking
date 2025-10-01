@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Permissions } from '../types/auth';
 import {
@@ -14,6 +14,7 @@ import {
     X
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../i18n'; 
 
 interface NavigationProps {
     user: any;
@@ -24,17 +25,18 @@ const Navigation: React.FC<NavigationProps> = ({ user, className = '' }) => {
     const location = useLocation();
     const { isSuperuser, isAuthenticated } = useAuth();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const { t } = useI18n(); 
+    const navigationItems = useMemo(() => [
+        { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutDashboard, permission: null, isSuperuser: false },
+        { name: t('nav.invoices'), href: '/invoices', icon: FileText, permission: 'view_invoice', isSuperuser: true },
+        { name: t('nav.analytics'), href: '/analytics', icon: BarChart3, permission: 'view_reports', isSuperuser: true },
+        { name: t('nav.users'), href: '/users', icon: Users, permission: 'manage_users', isSuperuser: true },
+        { name: t('nav.notifications'), href: '/notifications', icon: Bell, permission: null, isSuperuser: false },
+        { name: t('nav.report'), href: '/reports', icon: Download, permission: 'view_reports', isSuperuser: true },
+        { name: t('nav.settings'), href: '/settings', icon: Settings, permission: null, isSuperuser: false }
+    ], [t]);
 
-    const navigationItems = [
-        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null, isSuperuser: false },
-        { name: 'Invoices', href: '/invoices', icon: FileText, permission: 'view_invoice', isSuperuser: true },
-        { name: 'Create Invoice', href: '/invoices/create', icon: Upload, permission: 'create_invoice', isSuperuser: true },
-        { name: 'Analytics', href: '/analytics', icon: BarChart3, permission: 'view_reports', isSuperuser: true },
-        { name: 'Users', href: '/users', icon: Users, permission: 'manage_users', isSuperuser: true },
-        { name: 'Notifications', href: '/notifications', icon: Bell, permission: null, isSuperuser: false },
-        { name: 'Reports', href: '/reports', icon: Download, permission: 'view_reports', isSuperuser: true },
-        { name: 'Settings', href: '/settings', icon: Settings, permission: null, isSuperuser: false }
-    ];
+
 
     const hasPermission = (permission: string | null) => {
         if (!permission) return true;

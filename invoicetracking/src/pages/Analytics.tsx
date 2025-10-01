@@ -14,7 +14,7 @@ interface AnalyticsData {
   invoiceStatusData: Array<{ status: string; count: number }>;
 }
 
-const Analytics: React.FC = () => {
+export const Analytics: React.FC = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

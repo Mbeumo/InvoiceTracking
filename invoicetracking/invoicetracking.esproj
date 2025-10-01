@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="node_modules\.vite-temp\" />
+    <Folder Include="src\ui\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="node_modules\%40alloc\quick-lru\index.d.ts" />

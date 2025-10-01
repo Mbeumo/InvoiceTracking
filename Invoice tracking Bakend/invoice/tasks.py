@@ -7,14 +7,26 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import logging
-from django.contib.auth import get_user_model
+from django.core.cache import cache
+from django.conf import settings
+import traceback
+from django.db.models import Q, Sum
+import json
+from django.contrib.auth import get_user_model
 
 from .models import Invoice, InvoiceTemplate
 from notifications.service import notification_service
 #analytic and workflow service
 #from ai_system.service import PredictiveAnalyticsService
 
-from .models import Notification, AIProcessingResult, WorkflowRule,InvoiceHistory
+from .models import WorkflowRule,InvoiceHistory
+from .analytics_utils import (
+    upcoming_cashflow_total,
+    monthly_totals_last_n_months,
+    monthly_growth_percentage,
+    top_vendors,
+    risk_alerts
+)
 
 
 logger = logging.getLogger(__name__)
@@ -236,3 +248,67 @@ def cleanup_old_data() -> dict:
     except Exception as e:
         logger.error(f"Data cleanup failed: {e}")
         return {"success": False, "error": str(e)}
+
+    from .analytics_utils import (
+    upcoming_cashflow_total,
+    monthly_totals_last_n_months,
+    monthly_growth_percentage,
+    top_vendors,
+    risk_alerts
+)
+
+logger = logging.getLogger(__name__)
+
+CACHE_KEY = "analytics:overview:v1"  # bump version to force invalidation if structure changes
+CACHE_TTL = getattr(settings, "CACHE_TTL", 60 * 30)  # default 30 minutes
+
+@shared_task(bind=True)
+def compute_analytics(self):
+    """
+    Compute analytics and cache JSON-friendly results.
+    This should be scheduled via Celery beat (e.g. every 15 minutes).
+    """
+    try:
+        # 1) upcoming cashflow (next 30 days)
+        upcoming_total = upcoming_cashflow_total(days=30)
+
+        # 2) monthly totals + growth (last 6 months)
+        monthly = monthly_totals_last_n_months(months=6)
+        monthly_with_growth = monthly_growth_percentage(monthly)
+
+        # 3) top 5 vendors
+        top5 = top_vendors(limit=5)
+
+        # 4) risk alerts
+        alerts = risk_alerts(threshold=0.8, limit=20)
+
+        payload = {
+            "generated_at": timezone_now_iso(),  # helper below
+            "upcoming_cashflow_30d": upcoming_total,
+            "monthly_trends": monthly_with_growth,
+            "top_vendors": top5,
+            "risk_alerts": alerts,
+        }
+
+        # JSON-safe: payload already uses floats, strings, iso dates
+        cache.set(CACHE_KEY, payload, CACHE_TTL)
+        logger.info("Analytics computed and cached")
+        return {"success": True, "cached_key": CACHE_KEY}
+
+    except Exception as e:
+        logger.exception("Failed to compute analytics: %s", e)
+        return {"success": False, "error": str(e)}
+
+def timezone_now_iso():
+    from django.utils import timezone
+    return timezone.now().isoformat()
+
+@shared_task
+def invoice_ocr_task(invoice_id):
+    from .views import run_ocr_on_file
+    invoice = Invoice.objects.get(id=invoice_id)
+    if invoice.file:
+        ocr_result = run_ocr_on_file(invoice.file.path)
+        invoice.raw_text = ocr_result.get("raw_text", "")
+        invoice.ocr_confidence = ocr_result.get("ocr_confidence")
+        invoice.save(update_fields=["raw_text", "ocr_confidence"])

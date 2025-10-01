@@ -16,9 +16,10 @@ from pathlib import Path
 from datetime import timedelta
 
 from environs import Env
-
+import pytesseract
 env = Env()
 env.read_env()
+pytesseract.pytesseract.tesseract_cmd = r"C:/Users/Administrateur/AppData/Local/Programs/Tesseract-OCR/tesseract.exe"
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
@@ -198,6 +199,11 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
+    ),
+    "DEFAULT_PARSER_CLASSES": (
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.MultiPartParser",
+        "rest_framework.parsers.FormParser",
     ),
 }
 

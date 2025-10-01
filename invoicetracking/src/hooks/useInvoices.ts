@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { InvoiceService } from '../services/apiService';
-import { Invoice } from '../types/invoice'; // Adjust path if needed
+import { Invoice } from '../types/DatabaseModels'; // Adjust path if needed
 
 interface UseInvoicesParams {
     page?: number;
     pageSize?: number;
     search?: string;
+    [key: string]: any;
 }
 
 export const useInvoices = (params?: UseInvoicesParams) => {
@@ -24,7 +25,7 @@ export const useInvoices = (params?: UseInvoicesParams) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await InvoiceService.getInvoices(params);
+            const data = await InvoiceService.getInvoices(params as any);
             setInvoices(data.results || data); // Adjust if paginated
         } catch (err: any) {
             console.error('Failed to fetch invoices:', err);
@@ -34,19 +35,19 @@ export const useInvoices = (params?: UseInvoicesParams) => {
         }
     };
 
-    const getInvoice = async (id: string) => {
+    const getInvoice = async (id: number ) => {
         return await InvoiceService.getInvoice(id);
     };
 
-    const createInvoice = async (invoiceData: any) => {
+    const createInvoice = async (invoiceData: Partial<Invoice> ) => {
         return await InvoiceService.createInvoice(invoiceData);
     };
 
-    const updateInvoice = async (id: string, invoiceData: any) => {
+    const updateInvoice = async (id: number, invoiceData: Partial<Invoice>) => {
         return await InvoiceService.updateInvoice(id, invoiceData);
     };
 
-    const deleteInvoice = async (id: string) => {
+    const deleteInvoice = async (id: number) => {
         return await InvoiceService.deleteInvoice(id);
     };
 
@@ -58,8 +59,8 @@ export const useInvoices = (params?: UseInvoicesParams) => {
         return await InvoiceService.searchInvoices(query, filters);
     };
 
-    const uploadInvoiceFile = async (file: File) => {
-        return await InvoiceService.uploadInvoiceFile(file);
+    const uploadInvoiceFile = async (file: File, extraData?: Record<string, any>) => {
+        return await InvoiceService.uploadInvoiceFile(file, extraData);
     };
 
     return {

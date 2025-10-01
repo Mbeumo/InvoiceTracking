@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Invoice } from "../types/DatabaseModels";
+import { Invoice } from "../types/invoice";
 import { User } from "../types/auth";
 import { InvoiceList } from "./InvoiceList";
 import { Card } from "../components/Card";
@@ -11,11 +11,15 @@ interface InvoicesPageProps {
 }
 
 export const InvoicesPage: React.FC<InvoicesPageProps> = ({ user }) => {
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+   //const [invoices, setInvoices] = useState<Invoice[]>([]);
+   // const [loading, setLoading] = useState(true);
+   // const [error, setError] = useState<string | null>(null);
     const [filters, setFilters] = useState<{ search?: string; status?: string; service?: string }>({});
+
     const {
+        invoices,
+        error,
+        loading,
         fetchInvoices,
         createInvoice,
         updateInvoice,
@@ -24,40 +28,28 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({ user }) => {
         searchInvoices,
         uploadInvoiceFile,
     } = useInvoices();
-    const handleFilterChange = useCallback((f) => {
-        fetchInvoices(f);
-    }, [fetchInvoices]);
-    /*useEffect(() => {
-        const loadInvoices = async () => {
-            try {
-                setLoading(true);
-                const data = await fetchInvoices(filters); 
-                setInvoices(data);
-            } catch (err: any) {
-                setError(err.message || "Failed to load invoices");
-            } finally {
-                setLoading(false);
-            }
-        };
 
-        loadInvoices();
-    }, [filters, fetchInvoices]);
-    */
+    const handleFilterChange = useCallback(
+        async (f: typeof filters) => {
+            setFilters(f);
+        },
+        []
+    );
+
+   
     // CRUD Handlers
-    const handleUpdateInvoice = async (id: string, updates: Partial<Invoice>) => {
-        const updated = await updateInvoice(id, updates);
-        setInvoices((prev) => prev.map((inv) => (inv.id === id ? updated : inv)));
+    const handleUpdateInvoice = async (id: number, updates: Partial<Invoice>) => {
+        await updateInvoice(id, updates);
     };
 
-    const handleDeleteInvoice = async (id: string) => {
+    const handleDeleteInvoice = async (id: number) => {
         await deleteInvoice(id);
-        setInvoices((prev) => prev.filter((inv) => inv.id !== id));
     };
 
-    const handleCreateInvoice = async (invoice: Partial<Invoice>) => {
-        const created = await createInvoice(invoice);
-        setInvoices((prev) => [created, ...prev]);
+    const handleCreateInvoice = async (invoice:  Partial<Invoice>) => { 
+        await createInvoice(invoice);
     };
+
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -76,11 +68,16 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({ user }) => {
                 </Card>
             )}
 
-            <InvoiceList
-                invoices={invoices}
-                user={user}
-                onFilterChange={handleFilterChange}
-            />
+            {!loading && !error && (
+                <InvoiceList
+                    invoices={invoices}
+                    user={user}
+                    onFilterChange={handleFilterChange}
+                    onCreate={handleCreateInvoice}
+                    onDelete={handleDeleteInvoice}
+                    onUpdate={handleUpdateInvoice}
+                />
+            )}
         </div>
     );
 };

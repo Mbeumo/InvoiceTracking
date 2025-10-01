@@ -1,7 +1,8 @@
 // API Service Layer for Django Backend Communication
 import api from '../controllers/api';
+import { api as rawAxios } from '../controllers/api';
 import { API_ENDPOINTS } from './apiEndpoints';
-import { SettingsData } from '../hooks/useSettings';
+import { SystemSetting,Invoice } from '../types/DatabaseModels';
 /**
  * API Service Layer for Django Backend Communication
  * 
@@ -147,10 +148,24 @@ static async getServices(): Promise<{ id: string; name: string }[]> {
     });
     
     return {
-      message: error.response?.data?.message || error.response?.data?.detail || error.message || 'An error occurred',
+      message: error.response?.data?.message || error.response?.data?.detail || this.humanize(error) || 'Something went wrong. Please try again.',
       status: error.response?.status || 500,
       details: error.response?.data
     };
+  }
+
+  private static humanize(error: any): string | null {
+    const data = error.response?.data;
+    if (!data) return null;
+    if (typeof data === 'string') return data;
+    // DRF field errors
+    if (typeof data === 'object') {
+      const firstKey = Object.keys(data)[0];
+      const value = data[firstKey];
+      if (Array.isArray(value)) return `${firstKey}: ${value[0]}`;
+      if (typeof value === 'string') return `${firstKey}: ${value}`;
+    }
+    return null;
   }
 }
 
@@ -165,7 +180,7 @@ export class InvoiceService {
     }
   }
 
-  static async getInvoice(id: string) {
+  static async getInvoice(id: number ) {
     try {
       const response = await api.get(API_ENDPOINTS.INVOICES.DETAIL(id));
       return response.data;
@@ -174,25 +189,31 @@ export class InvoiceService {
     }
   }
 
-  static async createInvoice(invoiceData: any) {
-    try {
-      const response = await api.post(API_ENDPOINTS.INVOICES.CREATE, invoiceData);
+    static async createInvoice(invoiceData: Partial<Invoice> ) {
+      try {
+
+          const response = await api.post(API_ENDPOINTS.INVOICES.CREATE, invoiceData);
+          console.log('Create Invoice Response:', invoiceData);
       return response.data;
     } catch (error: any) {
       throw this.handleError(error);
     }
   }
 
-  static async updateInvoice(id: string, invoiceData: any) {
+    static async updateInvoice(id: number, invoiceData: Partial<Invoice> ) {
     try {
-      const response = await api.put(API_ENDPOINTS.INVOICES.UPDATE(id), invoiceData);
+        const response = await api.put(API_ENDPOINTS.INVOICES.UPDATE(id), invoiceData, {
+            headers: {
+                'Content-Type': 'multipart/form-data' 
+            }
+        });
       return response.data;
     } catch (error: any) {
       throw this.handleError(error);
     }
   }
 
-  static async deleteInvoice(id: string) {
+  static async deleteInvoice(id: number ) {
     try {
       await api.delete(API_ENDPOINTS.INVOICES.DELETE(id));
     } catch (error: any) {
@@ -222,10 +243,15 @@ export class InvoiceService {
       throw this.handleError(error);
     }
   }
-    static async uploadInvoiceFile(file: File) {
+    static async uploadInvoiceFile(file: File, extraData?: Record<string, any>) {
         try {
             const formData = new FormData();
             formData.append('file', file);
+            if (extraData) {
+                Object.entries(extraData).forEach(([key, value]) => {
+                    formData.append(key, String(value));
+                });
+            }
 
             const response = await api.post(API_ENDPOINTS.INVOICES.UPLOAD, formData, {
                 headers: {
@@ -300,6 +326,52 @@ export class UserService {
   static async deleteUser(id: string) {
     try {
       await api.delete(API_ENDPOINTS.USERS.DELETE(id));
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  // New: permissions & groups management
+  static async listPermissions() {
+    try {
+      const response = await api.get(API_ENDPOINTS.PERMISSIONS.LIST);
+      return response.data;
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  static async listGroups() {
+    try {
+      const response = await api.get(API_ENDPOINTS.GROUPS.LIST);
+      return response.data;
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  static async setGroupPermissions(groupId: string, payload: { set_permissions?: string[]; add_permissions?: string[]; remove_permissions?: string[] }) {
+    try {
+      const response = await api.post(API_ENDPOINTS.GROUPS.PERMISSIONS(groupId), payload);
+      return response.data;
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  static async updateUserPermissions(userId: string, payload: { add_permissions?: string[]; remove_permissions?: string[] }) {
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.PERMISSIONS_OF_USER(userId), payload);
+      return response.data;
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  static async updateUserGroups(userId: string, payload: { set_groups?: string[]; add_groups?: string[]; remove_groups?: string[] }) {
+    try {
+      const response = await api.post(API_ENDPOINTS.USERS.GROUPS_OF_USER(userId), payload);
+      return response.data;
     } catch (error: any) {
       throw this.handleError(error);
     }
@@ -554,19 +626,14 @@ export class FileService {
 
 // Settings Service
 // services/SettingsService.ts
-import api from "../controllers/api";
-import { API_ENDPOINTS } from "./apiEndpoints";
-import { SettingsData } from "../types/settings";
-import { ApiError } from "./apiService";
-
 export class SettingsService {
     /**
      * Fetch both user & system settings
      */
-    static async getSettings(): Promise<SettingsData> {
+    static async getSettings(): Promise<SystemSetting[]> { // <- return array
         try {
             const response = await api.get(API_ENDPOINTS.SETTINGS.GET); // → "/settings/"
-            return response.data;
+            return response.data; // data is SystemSetting[]
         } catch (error: any) {
             throw this.handleError(error);
         }
@@ -578,9 +645,9 @@ export class SettingsService {
     static async createSetting(setting: {
         key: string;
         value: any;
-        setting_type?: string;
+        type?: string;
         category?: string;
-    }): Promise<any> {
+    }): Promise<SystemSetting> {
         try {
             const response = await api.post(API_ENDPOINTS.SETTINGS.GET, setting);
             return response.data;
@@ -590,31 +657,16 @@ export class SettingsService {
     }
 
     /**
-     * Update a specific system setting
-     * (PUT /settings/<uuid:id>/update/)
+     * Bulk update
      */
-    static async updateSetting(id: string, setting: {
-        value: any;
-    }): Promise<any> {
-        try {
-            const response = await api.put(API_ENDPOINTS.SETTINGS.UPDATE(id), setting);
-            return response.data;
-        } catch (error: any) {
-            throw this.handleError(error);
-        }
-    }
-
-    /**
-     * Bulk update (if you want to send the whole structure at once)
-     */
-    /*static async updateAll(settings: SettingsData): Promise<SettingsData> {
+    static async updateAll(settings: SystemSetting[]): Promise<SystemSetting[]> {
         try {
             const response = await api.put(API_ENDPOINTS.SETTINGS.BULK_UPDATE, settings);
             return response.data;
         } catch (error: any) {
             throw this.handleError(error);
         }
-    }*/
+    }
 
     private static handleError(error: any): ApiError {
         console.error("SettingsService Error:", {

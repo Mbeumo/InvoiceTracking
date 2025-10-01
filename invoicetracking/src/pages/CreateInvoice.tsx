@@ -3,20 +3,18 @@ import React, { useState, useEffect, useRef } from 'react'; import {
     X,
     Camera,
     Edit,
-    
 } from 'lucide-react';
 import { Invoice } from '../types/DatabaseModels';
 import { User } from '../types/auth';
 import { useInvoices } from '../hooks/useInvoices';
+import { useToast } from '../components/ToastProvider';
 export const CreateInvoiceModal = ({
     isOpen,
     onClose,
-    onSubmit,
     user
 }: {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (invoice: Partial<Invoice>) => void;
     user: User;
 }) => {
     const [createMethod, setCreateMethod] = useState<'manual' | 'upload' | null>(null);
@@ -28,15 +26,15 @@ export const CreateInvoiceModal = ({
         subtotal: 0,
         tax_amount: 0,
         total_amount: 0,
-        currency: 'EUR',
+        currency: 'FCFA',
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: '',
         payment_terms: 30,
         current_service: user.service,
         created_by: user.id
     });
-    const createInvoice= useInvoices();
-    const uploadInvoiceFile = useInvoices();
+    const { createInvoice, uploadInvoiceFile } = useInvoices();
+    const { notify } = useToast();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +43,7 @@ export const CreateInvoiceModal = ({
         if (formData.subtotal && formData.tax_amount !== undefined) {
             setFormData(prev => ({
                 ...prev,
-                totalAmount: (prev.subtotal || 0) + (prev.tax_amount || 0)
+                total_amount: (prev.subtotal || 0) + (prev.tax_amount || 0)
             }));
         }
     }, [formData.subtotal, formData.tax_amount]);
@@ -70,21 +68,18 @@ export const CreateInvoiceModal = ({
                 });
             }, 300);
 
-            const result = await uploadInvoiceFile(file, {
-                currentService: user.service,
-                createdBy: user.id
-            });
+            const result = await uploadInvoiceFile(file);
 
             setUploadProgress(100);
             setTimeout(() => {
-                onSubmit(result);
+                notify({ type: 'success', title: 'Upload complete', message: 'We extracted data from your document.' });
                 onClose();
                 resetForm();
             }, 500);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Upload failed:', error);
-            alert('Upload failed. Please try again.');
+            notify({ type: 'error', title: 'Upload failed', message: error?.message || 'Please try again.' });
         } finally {
             setIsProcessing(false);
         }
@@ -93,15 +88,32 @@ export const CreateInvoiceModal = ({
     const handleManualSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsProcessing(true);
+       
 
         try {
-            const result = await createInvoice(formData);
-            onSubmit(result);
+            const formdata: any = {
+                vendor_name: formData.vendor_name,
+                number: formData.number,
+                currency: formData.currency,
+                invoice_date: formData.invoice_date || formData.issue_date,
+                due_date: formData.due_date,
+                current_service: formData.current_service || user.service,
+                description: formData.description
+            };
+            if (formData.subtotal !== undefined && formData.tax_amount !== undefined) {
+                formdata.subtotal = formData.subtotal;
+                formdata.tax_amount = formData.tax_amount;
+            } else if (formData.total_amount !== undefined) {
+                formdata.total_amount = formData.total_amount;
+            }
+            const result = await createInvoice(formdata);
+            console.log('Created invoice:', result);
+            notify({ type: 'success', title: 'Invoice created', message: 'Your invoice was saved successfully.' });
             onClose();
             resetForm();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Creation failed:', error);
-            alert('Invoice creation failed. Please try again.');
+            notify({ type: 'error', title: 'Create failed', message: error?.message || 'Please try again.' });
         } finally {
             setIsProcessing(false);
         }
@@ -110,7 +122,7 @@ export const CreateInvoiceModal = ({
     const resetForm = () => {
         setCreateMethod(null);
         setUploadProgress(0);
-        setFormData({
+            setFormData({
             vendor_name: '',
             description: '',
             subtotal: 0,
@@ -185,6 +197,8 @@ export const CreateInvoiceModal = ({
 
                     {createMethod === 'manual' && (
                         <form onSubmit={handleManualSubmit} className="space-y-4">
+
+                            {/* Vendor Name */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name *</label>
@@ -193,11 +207,41 @@ export const CreateInvoiceModal = ({
                                         required
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                         value={formData.vendor_name}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, vendorName: e.target.value }))}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, vendor_name: e.target.value }))}
+                                    />
+                                </div>
+
+                                {/* Invoice Number */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        value={formData.number}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
                                     />
                                 </div>
                             </div>
 
+                            {/* Currency */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Currency *</label>
+                                <select
+                                    required
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    value={formData.currency}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+                                >
+                                    <option value="">Select currency</option>
+                                    <option value="XAF">XAF</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    {/* Add more as needed */}
+                                </select>
+                            </div>
+
+                            {/* Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
                                 <textarea
@@ -209,6 +253,7 @@ export const CreateInvoiceModal = ({
                                 />
                             </div>
 
+                            {/* Amounts */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Subtotal *</label>
@@ -229,7 +274,7 @@ export const CreateInvoiceModal = ({
                                         step="0.01"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                         value={formData.tax_amount}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, taxAmount: parseFloat(e.target.value) || 0 }))}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, tax_amount: parseFloat(e.target.value) || 0 }))}
                                     />
                                 </div>
 
@@ -245,15 +290,16 @@ export const CreateInvoiceModal = ({
                                 </div>
                             </div>
 
+                            {/* Dates */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date *</label>
                                     <input
                                         type="date"
                                         required
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                        value={formData.invoice_date}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, invoiceDate: e.target.value }))}
+                                        value={formData.issue_date}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, issue_date: e.target.value }))}
                                     />
                                 </div>
 
@@ -264,11 +310,12 @@ export const CreateInvoiceModal = ({
                                         required
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                         value={formData.due_date}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
                                     />
                                 </div>
                             </div>
 
+                            {/* Actions */}
                             <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"

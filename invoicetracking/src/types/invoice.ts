@@ -6,38 +6,68 @@
  */
 
 export interface Invoice {
-    id: string;
-    invoiceNumber: string;
-    supplierName: string;
-    amount: number;
+    id: number; // UUID, optional for insert
+    // Vendor Info
+    number: string;
+    vendor_name: string;
+    vendor_email?: string;
+    vendor_phone?: string;
+
+    // Financials
+    subtotal: number;
+    tax_amount: number;
+    total_amount: number;
     currency: string;
-    dueDate: string;
-    issueDate: string;
-    status: InvoiceStatus;
-    currentService: string;
-    assignedTo?: string;
+    exchange_rate?: number;
+    base_currency_amount?: number;
+
+    // Description & Notes
     description?: string;
-    attachments?: string[];
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-    
-    // Payment information
-    paymentDate?: string;
-    paymentMethod?: string;
-    paymentReference?: string;
-    
-    // Approval workflow
-    approvedBy?: string;
-    approvedAt?: string;
-    rejectedBy?: string;
-    rejectedAt?: string;
-    rejectionReason?: string;
-    
-    // Categories and tags
-    category?: string;
-    tags?: string[];
-    priority?: 'low' | 'medium' | 'high';
+    notes?: string;
+    external_reference?: string;
+
+    // Dates
+    invoice_date: string;
+    issue_date: string;
+    due_date: string;
+    payment_date?: string;
+    discount_due_date?: string;
+
+    // Status & Workflow
+    status: string;
+    current_service: string;
+    assigned_to?: string;
+    priority: string;
+
+    // Approval
+    approval_level: number;
+    approved_by?: string;
+    approved_at?: string;
+    rejection_reason?: string;
+
+    // Payment Terms
+    payment_terms: number;
+    late_fees?: number;
+    discount_amount?: number;
+
+    // File & Metadata
+    file: string;
+    created_by: string;
+    updated_by?: string;
+    version: number;
+    created_at?: string;
+    updated_at?: string;
+
+    // OCR & Matching
+    raw_text?: string;
+    ocr_confidence?: number;
+    matched_template?: string;
+    workflow?: string;
+
+    // Derived Fields (optional, from serializer)
+    days_until_due?: number;
+    is_overdue?: boolean;
+    comments_count?: number;
 }
 
 export type InvoiceStatus = 
@@ -58,6 +88,7 @@ export interface InvoiceStats {
     overdue: number;
     totalAmount: number;
     paidAmount: number;
+    pendingAmount: number;
 }
 
 export interface InvoiceActivity {

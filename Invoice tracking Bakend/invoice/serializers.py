@@ -23,22 +23,34 @@ class InvoiceTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoiceTemplate
         fields = [
-            "id", "supplier", "name", "enabled", "detection_keywords", 
+            "id", "vendor_name", "name", "enabled", "detection_keywords", 
             "rois", "sample_image", "created_at", "updated_at"
         ]
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):
-    supplier_id = serializers.IntegerField(write_only=True)
+    #supplier_id = serializers.IntegerField(write_only=True)
     
     class Meta:
         model = Invoice
         fields = [
-            "supplier_id", "number", "amount", "currency", 
-            "issue_date", "due_date", "file"
+            "vendor_name", "number", "total_amount", "currency", 
+            "invoice_date", "issue_date", "due_date", "subtotal","tax_amount","description","current_service","file"
         ]
+        extra_kwargs = {
+            "total_amount": {"required": False},
+            "currency": {"required": False},
+            "invoice_date": {"required": False},
+            "issue_date": {"required": False},
+            "due_date": {"required": False},
+            "subtotal": {"required": False},
+            "tax_amount": {"required": False},
+            "description": {"required": False, "allow_blank": True},
+            "current_service": {"required": False},
+            "file": {"required": False},
+        }
     
-    def validate_amount(self, value):
+    def validate_total_amount(self, value):
         if value <= 0:
             raise serializers.ValidationError("Amount must be positive")
         return value
@@ -47,6 +59,46 @@ class InvoiceCreateSerializer(serializers.ModelSerializer):
         if value < datetime.now().date():
             raise serializers.ValidationError("Due date cannot be in the past")
         return value
+
+    def create(self, validated_data):
+        # Backfill optional fields and derive total if needed
+        subtotal = validated_data.get("subtotal")
+        tax_amount = validated_data.get("tax_amount")
+        # Default missing monetary components to 0 for model-required fields
+        if subtotal is None:
+            validated_data["subtotal"] = Decimal("0")
+            subtotal = validated_data["subtotal"]
+        if tax_amount is None:
+            validated_data["tax_amount"] = Decimal("0")
+            tax_amount = validated_data["tax_amount"]
+        total_amount = validated_data.get("total_amount")
+        if total_amount is None and subtotal is not None and tax_amount is not None:
+            validated_data["total_amount"] = Decimal(subtotal) + Decimal(tax_amount)
+        # Ensure required dates exist
+        invoice_date = validated_data.get("invoice_date")
+        issue_date = validated_data.get("issue_date")
+        if issue_date is None and invoice_date is not None:
+            validated_data["issue_date"] = invoice_date
+        if invoice_date is None and issue_date is not None:
+            validated_data["invoice_date"] = issue_date
+        # Default due_date to invoice_date if missing
+        if not validated_data.get("due_date"):
+            if validated_data.get("invoice_date"):
+                validated_data["due_date"] = validated_data["invoice_date"]
+        # Provide a default currency if missing
+        if not validated_data.get("currency"):
+            validated_data["currency"] = "FCFA"
+        # Default current_service from requesting user's service when available
+        if not validated_data.get("current_service"):
+            request = self.context.get("request") if hasattr(self, 'context') else None
+            if request and getattr(request.user, 'service_id', None):
+                try:
+                    validated_data["current_service"] = request.user.service_id.name
+                except Exception:
+                    pass
+        if not validated_data.get("current_service"):
+            raise serializers.ValidationError({"current_service": "This field is required."})
+        return super().create(validated_data)
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -59,10 +111,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
         fields = [
-            "id", "created_by", "supplier", "number", "total_amount", "currency",
+            "id", "created_by", "vendor_name", "number", "total_amount", "currency",
             "issue_date", "due_date", "status", "raw_text", "ocr_confidence",
             "matched_template", "file", "created_at", "updated_at",
-            "days_until_due", "is_overdue", "comments_count","workflowId"
+            "days_until_due", "is_overdue", "comments_count","workflow","subtotal","tax_amount","description"
         ]
         read_only_fields = [
             "id", "created_by", "raw_text", "ocr_confidence", 

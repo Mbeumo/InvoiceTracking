@@ -117,7 +117,7 @@ class SystemConfiguration(models.Model):
         null=True,
         blank=True
     )
-
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="settings", null=True, blank=True)
     class Meta:
         ordering = ['category', 'key']
 

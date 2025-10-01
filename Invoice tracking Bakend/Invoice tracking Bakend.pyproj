@@ -59,6 +59,7 @@
     <Compile Include="departments\views.py" />
     <Compile Include="departments\__init__.py" />
     <Compile Include="invoice\admin.py" />
+    <Compile Include="invoice\analytics_utils.py" />
     <Compile Include="invoice\apps.py" />
     <Compile Include="invoice\migrations\__init__.py" />
     <Compile Include="invoice\models.py" />

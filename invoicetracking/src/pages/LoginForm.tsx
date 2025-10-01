@@ -19,6 +19,7 @@ import { LoginCredentials } from '../types/auth';
 import { LogIn, Eye, EyeOff, User, Lock, AlertCircle, UserPlus } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../components/ToastProvider';
 
 
 export const LoginForm: React.FC<{
@@ -27,6 +28,7 @@ export const LoginForm: React.FC<{
 }> = ({ onLogin }) => {
     const { t } = useI18n();
     const { login, isLoading } = useAuth(); // <-- use hook
+    const { notify } = useToast();
     const [credentials, setCredentials] = useState<LoginCredentials>({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -41,7 +43,7 @@ export const LoginForm: React.FC<{
             return;
         }
         /*const goToDashboard = () => {
-            navigate('/dashboard'); // 👈 This moves to the named route
+            navigate('/dashboard'); 
         };*/
 
         try {
@@ -51,17 +53,20 @@ export const LoginForm: React.FC<{
 
             if (!success) {
                 setError('Login failed. Check console for details.');
+                notify({ type: 'error', title: 'Login failed', message: 'Please check your credentials and try again.' });
                 return;
             } else if (success) {
+                notify({ type: 'success', title: 'Welcome back', message: 'You have successfully signed in.' });
                 window.location.reload();
                 navigate('/dashboard'); // ✅ Redirect here
-                console.log("User permissions:", users?.permissions);
+                //console.log("User permissions:", users?.permissions);
 
             }
             
         } catch (error: any) {
             console.error('Login form error:', error);
             setError(`Connection error: ${error.message || 'Unable to connect to server'}`);
+            notify({ type: 'error', title: 'Connection error', message: error.message || 'Unable to connect to server' });
         }
 
     };
@@ -197,7 +202,7 @@ export const LoginForm: React.FC<{
                     </form>
 
                     <div className="mt-6 text-center space-y-3">
-                        <p className="text-gray-600 dark:text-gray-300 mb-3 text-sm sm:text-base">Vous n'avez pas de compte ?</p>
+                        <p className="text-gray-600 dark:text-gray-300 mb-3 text-sm sm:text-base">Dont have an account Sign up  ?</p>
                         <button
                             onClick={ () => navigate('/register') }
                             disabled={isLoading}

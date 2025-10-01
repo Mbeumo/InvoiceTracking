@@ -15,7 +15,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     """Enhanced notification management with real-time updates"""
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ["type", "is_read", "priority"]
+    filterset_fields = ["object_type", "is_read"]
     ordering_fields = ["created_at", "priority"]
     
     def get_queryset(self):

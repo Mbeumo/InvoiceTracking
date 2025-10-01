@@ -9,9 +9,6 @@ def perform_ocr_and_extract_data(image_file):
         # Open the image using Pillow
         image = Image.open(image_file)
 
-
-
-
         # Perform OCR
         raw_text = pytesseract.image_to_string(image)
         # Get OCR data including confidence scores

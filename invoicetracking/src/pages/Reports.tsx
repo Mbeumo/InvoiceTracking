@@ -14,7 +14,7 @@ interface Report {
   downloadUrl?: string;
 }
 
-const Reports: React.FC = () => {
+export const Reports: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);

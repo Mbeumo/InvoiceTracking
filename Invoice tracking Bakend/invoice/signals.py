@@ -3,6 +3,12 @@ from channels.layers import get_channel_layer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.core.cache import cache
+from .models import Invoice
+from .tasks import CACHE_KEY as ANALYTICS_KEY
+import logging
 
 from .models import Invoice, Notification, AIProcessingResult
 from notifications.models import Notification
@@ -134,3 +140,23 @@ def broadcast_ai_processing_complete(sender, instance: AIProcessingResult, creat
                     "changed_by": getattr(instance, '_changed_by', 'Unknown'),
                     "timestamp": timezone.now().isoformat()
                 })
+
+
+                # invoices/signals.py
+
+logger = logging.getLogger(__name__)
+
+@receiver(post_save, sender=Invoice)
+def invoice_changed(sender, instance, **kwargs):
+    # Invalidate analytics cache proactively so fresh values are computed quickly
+    try:
+        cache.delete(ANALYTICS_KEY)
+    except Exception:
+        logger.exception("Failed to delete analytics cache on invoice save")
+
+@receiver(post_delete, sender=Invoice)
+def invoice_deleted(sender, instance, **kwargs):
+    try:
+        cache.delete(ANALYTICS_KEY)
+    except Exception:
+        logger.exception("Failed to delete analytics cache on invoice delete")

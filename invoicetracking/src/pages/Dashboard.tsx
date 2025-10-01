@@ -11,7 +11,7 @@ import { FinancialSummary } from '../components/FinancialSummary';
 import { StatusDistribution } from '../components/StatusDistribution';
 import { AttentionRequired } from '../components/AttentionRequired';
 import { RecentActivity } from '../components/RecentActivity';
-
+import { useInvoices } from "../hooks/useInvoices" 
 interface DashboardProps {
     user: { 
         id: string;
@@ -35,31 +35,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         permissionSource 
     } = usePermissions();
     
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    //const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const { invoices, loading, error } = useInvoices();
     const [counts, setCounts] = useState<{ invoices: number; notifications: number }>({ invoices: 0, notifications: 0 });
 
     // Filter invoices based on user permissions
-    const visibleInvoices = hasPermission('Can view invoices') 
+    const visibleInvoices = hasPermission('view_invoice') 
         ? invoices 
-        : invoices.filter(inv => inv.currentService === user.service);
+        : invoices.filter(inv => inv.current_service === user.service);
+    const totalAmount = visibleInvoices.reduce((sum, inv) => {
+        const amount = typeof inv.total_amount === "number"
+            ? inv.total_amount
+            : parseFloat(inv.total_amount); // convert string to number
+        return sum + (isNaN(amount) ? 0 : amount); // fallback to 0 if invalid
+    }, 0);
+    visibleInvoices.forEach(inv => {
+        console.log(`Invoice ${inv.id}:`, typeof inv.total_amount, inv.total_amount);
+    });
 
+    const paidAmount = visibleInvoices
+        .filter(inv => inv.status === "paid")
+        .reduce((sum, inv) => sum + inv.total_amount, 0);
+
+    const pendingAmount = totalAmount - paidAmount;
     const stats: InvoiceStats = {
         total: visibleInvoices.length,
-        pending: visibleInvoices.filter(inv => inv.status === 'pending_approval').length,
-        approved: visibleInvoices.filter(inv => inv.status === 'approved').length,
-        paid: visibleInvoices.filter(inv => inv.status === 'paid').length,
-        overdue: visibleInvoices.filter(inv => 
-            new Date(inv.dueDate) < new Date() && inv.status !== 'paid'
+        pending: visibleInvoices.filter(inv => inv.status === "pending_approval").length,
+        approved: visibleInvoices.filter(inv => inv.status === "approved").length,
+        paid: visibleInvoices.filter(inv => inv.status === "paid").length,
+        overdue: visibleInvoices.filter(inv =>
+            new Date(inv.due_date) < new Date() && inv.status !== "paid"
         ).length,
-        totalAmount: visibleInvoices.reduce((sum, inv) => sum + inv.amount, 0),
-        paidAmount: visibleInvoices
-            .filter(inv => inv.status === 'paid')
-            .reduce((sum, inv) => sum + inv.amount, 0)
+        totalAmount,       // sum of all invoice amounts
+        paidAmount,        // sum of paid invoice amounts
+        pendingAmount, 
     };
-
     const statCards = [
         {
-            title: 'Total des factures',
+            title: t('dashboard.stats.total_invoices'),
             value: stats.total,
             icon: FileText,
             color: 'blue',
@@ -67,7 +80,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             iconColor: 'text-blue-600'
         },
         {
-            title: 'En attente d\'approbation',
+            title: t('dashboard.stats.pending_approval'),
             value: stats.pending,
             icon: Clock,
             color: 'yellow',
@@ -75,7 +88,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             iconColor: 'text-yellow-600'
         },
         {
-            title: 'Approuvées',
+            title: t('dashboard.stats.approved_invoices') ,
             value: stats.approved,
             icon: CheckCircle,
             color: 'green',
@@ -83,7 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             iconColor: 'text-green-600'
         },
         {
-            title: 'En retard',
+            title: t('dashboard.stats.overdue_invoices'),
             value: stats.overdue,
             icon: AlertTriangle,
             color: 'red',
@@ -102,14 +115,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 ]);
                 
                 // Set invoices for statistics calculation
-                if (invoicesData?.results) {
+               /*if (invoicesData?.results) {
                     setInvoices(invoicesData.results);
-                }
+                }*/
                 
-                setCounts({ 
+               /* setCounts({ 
                     invoices: invoicesData?.count ?? (invoicesData?.results?.length || 0), 
                     notifications: notifs?.count ?? notifs?.length ?? 0 
-                });
+                });*/
 
             } catch (error) {
                 console.error('Failed to load dashboard data:', error);
@@ -152,13 +165,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold">Bonjour, {user.name.split(' ')[0]} 👋</h1>
+                        <h1 className="text-2xl font-bold">{t('dashboard.hello')}, {user.name.split(' ')[0]} 👋</h1>
                         <p className="text-blue-100 mt-1">
-                            Voici un aperçu de vos factures {hasPermission('Can view invoices') ? 'globales' : `du service ${user.service}`}
+                            {t('dashboard.overview')} {hasPermission('Can view invoices') ? 'globales' : `${user.service}`}
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm text-blue-100">Service</p>
+                        <p className="text-sm text-blue-100">{t('auth.service.name')}</p>
                         <p className="font-semibold capitalize">{user.service}</p>
                         
                         {/* Permission Status Indicator */}

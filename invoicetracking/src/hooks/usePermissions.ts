@@ -74,7 +74,7 @@ export const usePermissions = () => {
 
 
     return {
-        permissions: user?.permission || [],
+        permissions: user?.permissions || [],
         hasPermission,
         checkPermission,
         checkPermissions,

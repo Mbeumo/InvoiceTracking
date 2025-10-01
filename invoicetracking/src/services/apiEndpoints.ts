@@ -21,9 +21,9 @@ export const API_ENDPOINTS = {
   INVOICES: {
     LIST: 'invoices/', // TODO: Replace with your Django invoices list endpoint
     CREATE: 'invoices/', // TODO: Replace with your Django invoice creation endpoint
-    DETAIL: (id: string) => `invoices/${id}/`, // TODO: Replace with your Django invoice detail endpoint
-    UPDATE: (id: string) => `invoices/${id}/`, // TODO: Replace with your Django invoice update endpoint
-    DELETE: (id: string) => `invoices/${id}/`, // TODO: Replace with your Django invoice delete endpoint
+    DETAIL: (id: number ) => `invoices/${id}/`, // TODO: Replace with your Django invoice detail endpoint
+    UPDATE: (id: number ) => `invoices/${id}/`, // TODO: Replace with your Django invoice update endpoint
+    DELETE: (id: number ) => `invoices/${id}/`, // TODO: Replace with your Django invoice delete endpoint
     EXPORT: 'invoices/export/', // TODO: Replace with your Django invoice export endpoint
     BULK_DELETE: 'invoices/bulk-delete/', // TODO: Replace with your Django bulk delete endpoint
     SEARCH: 'invoices/search/', // TODO: Replace with your Django invoice search endpoint
@@ -38,6 +38,8 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `users/${id}/`, // TODO: Replace with your Django user update endpoint
     DELETE: (id: string) => `users/${id}/`, // TODO: Replace with your Django user delete endpoint
     PERMISSIONS: 'users/permissions/', // TODO: Replace with your Django permissions endpoint
+    PERMISSIONS_OF_USER: (id: string) => `users/${id}/permissions/`,
+    GROUPS_OF_USER: (id: string) => `users/${id}/groups/`,
   },
 
   // Analytics endpoints
@@ -63,6 +65,16 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `files/${id}/`, // TODO: Replace with your Django file delete endpoint
   },
 
+  // Permissions and groups management
+  PERMISSIONS: {
+    LIST: 'permissions/',
+  },
+  GROUPS: {
+    LIST: 'groups/',
+    DETAIL: (id: string) => `groups/${id}/`,
+    PERMISSIONS: (id: string) => `groups/${id}/permissions/`,
+  },
+
   SERVICE: {
       LIST: '/services/',
       CREATE: '/services/',
@@ -74,7 +86,7 @@ export const API_ENDPOINTS = {
   // Settings and configuration endpoints
   SETTINGS: {
     GET: 'settings/', // TODO: Replace with your Django settings endpoint
-    UPDATE: 'settings/update/', // TODO: Replace with your Django settings update endpoint
+     BULK_UPDATE: 'settings/update/',// TODO: Replace with your Django settings update endpoint
       POST: 'settings/', // TODO: Replace with your Django settings create endpoint
     //THEME: 'settings/theme/', // TODO: Replace with your Django theme settings endpoint
     //LANGUAGE: 'settings/language/', // TODO: Replace with your Django language settings endpoint

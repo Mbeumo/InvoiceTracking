@@ -9,6 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from auditlog.context import set_actor
+from rest_framework.decorators import action
 
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode,urlsafe_base64_decode
@@ -18,7 +19,12 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import SystemConfiguration
-from .serializers import RegisterSerializer, UserSerializer, SystemConfigurationSerializer, SettingsResponseSerializer
+from .serializers import (
+    RegisterSerializer, UserSerializer, SystemConfigurationSerializer, SettingsResponseSerializer,
+    PermissionSerializer, GroupSerializer, UserPermissionUpdateSerializer, UserGroupUpdateSerializer,
+    GroupPermissionUpdateSerializer
+)
+from django.contrib.auth.models import Group, Permission
 # Create your views here.
 User = get_user_model()
 class IsSuperuserOrManager(permissions.BasePermission):
@@ -44,6 +50,31 @@ class UserViewSet(viewsets.ModelViewSet):
         set_actor(self.request.user)
         instance.delete()
 
+    # User-level permission management
+    def get_permissions(self):
+        # Ensure only admins/managers can mutate
+        if self.action in ["assign_permissions", "assign_groups", "revoke_permissions", "revoke_groups"]:
+            return [permissions.IsAuthenticated(), IsSuperuserOrManager()]
+        return super().get_permissions()
+
+    @action(detail=True, methods=["post"], url_path="permissions")
+    def assign_permissions(self, request, pk=None):
+        user = self.get_object()
+        serializer = UserPermissionUpdateSerializer(data=request.data, context={"user": user})
+        serializer.is_valid(raise_exception=True)
+        set_actor(request.user)
+        serializer.save()
+        return Response(UserSerializer(user).data)
+
+    @action(detail=True, methods=["post"], url_path="groups")
+    def assign_groups(self, request, pk=None):
+        user = self.get_object()
+        serializer = UserGroupUpdateSerializer(data=request.data, context={"user": user})
+        serializer.is_valid(raise_exception=True)
+        set_actor(request.user)
+        serializer.save()
+        return Response(UserSerializer(user).data)
+
 class RegisterView(generics.CreateAPIView):
     # User = get_user_model()
     queryset = User.objects.all()
@@ -55,6 +86,29 @@ class RegisterView(generics.CreateAPIView):
         set_actor(actor)
         serializer.save()
         return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+
+
+class GroupViewSet(viewsets.ModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSuperuserOrManager]
+
+    @action(detail=True, methods=["post"], url_path="permissions")
+    def set_permissions(self, request, pk=None):
+        group = self.get_object()
+        serializer = GroupPermissionUpdateSerializer(data=request.data, context={"group": group})
+        serializer.is_valid(raise_exception=True)
+        set_actor(request.user)
+        serializer.save()
+        return Response(GroupSerializer(group).data)
+
+
+class PermissionListView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsSuperuserOrManager]
+
+    def get(self, request):
+        perms = Permission.objects.select_related("content_type").order_by("content_type__app_label", "codename")
+        return Response(PermissionSerializer(perms, many=True).data)
 
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -167,27 +221,40 @@ class SettingsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user_data = UserSerializer(request.user).data
+        #user_data = UserSerializer(request.user).data
         system_configs = SystemConfiguration.objects.all()
-        system_data = SystemConfigurationSerializer(system_configs, many=True).data
+        serializer = SystemConfigurationSerializer(system_configs, many=True)
 
-        payload = {
-            "user": user_data,
-            "system": system_data
-        }
-        serializer = SettingsResponseSerializer(payload)
+        
         return Response(serializer.data)
 
 class SystemConfigurationUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSuperuserOrManager]
 
-    def post(self, request):
-        updates = request.data  # { "key1": value1, "key2": value2 }
-        for key, value in updates.items():
+    def put(self, request):
+        updates = request.data  # expect a list of {key: "appearance.theme", value: "dark"}
+        for item in updates:
+            key = item.get("key")
+            value = item.get("value")
+            type_ = item.get("type")
+            category = item.get("category")
+            is_editable = item.get("isEditable")
+            updated_by = request.user or item.get("updated_by")
+
+            if not key:
+                continue
             try:
-                conf = SystemConfiguration.objects.get(pk=key)
+                conf = SystemConfiguration.objects.get(key=key)
                 conf.value = str(value)
-                conf.save(update_fields=["value", "updated_at"])
+                if type_:
+                    conf.type = type_
+                if category:
+                    conf.category = category
+                if is_editable is not None:
+                    conf.is_editable = is_editable
+                conf.updated_by = updated_by
+                conf.save()
             except SystemConfiguration.DoesNotExist:
                 continue
+
         return Response({"status": "ok"})
